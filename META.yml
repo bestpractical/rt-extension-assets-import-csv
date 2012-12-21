@@ -1,0 +1,26 @@
+---
+abstract: 'RT Extension-Assets-Import Extension'
+author:
+  - 'sunnavy <sunnavy@bestpractical.com>'
+build_requires:
+  ExtUtils::MakeMaker: 6.36
+configure_requires:
+  ExtUtils::MakeMaker: 6.36
+distribution_type: module
+dynamic_config: 1
+generated_by: 'Module::Install version 1.06'
+license: gplv2
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: RT-Extension-Assets-Import
+no_index:
+  directory:
+    - inc
+requires:
+  RT::Extension::Assets: 0
+  Text::CSV: 0
+  Text::CSV_XS: 0
+resources:
+  license: http://opensource.org/licenses/gpl-license.php
+version: 0.01

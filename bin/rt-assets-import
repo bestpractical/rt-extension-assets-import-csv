@@ -1,0 +1,62 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+use lib '/opt/rt4/local/lib', '/opt/rt4/lib';
+
+use Getopt::Long;
+my %opt;
+GetOptions( \%opt, 'help|h', 'update|u', 'debug|d' );
+my $file = shift @ARGV;
+
+if ( $opt{help} || !$file ) {
+    require Pod::Usage;
+    Pod::Usage::pod2usage( { verbose => 2 } );
+    exit;
+}
+
+use RT;
+use RT::Extension::Assets::Import;
+use RT::Interface::CLI qw(CleanEnv GetCurrentUser);
+
+CleanEnv();
+
+RT->LoadConfig();
+
+RT->Config->Set( LogToScreen => $opt{debug} ? 'debug' : 'warning' );
+
+RT->Init();
+
+my $current_user = GetCurrentUser();
+
+unless ( $current_user->Id ) {
+    print "No RT user found. Please consult your RT administrator.";
+    exit(1);
+}
+
+my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import->run(
+    CurrentUser => $current_user,
+    File        => $file,
+    Update      => $opt{update},
+);
+
+print <<"EOF";
+created: $created
+updated: $updated
+skipped: $skipped
+EOF
+
+__END__
+
+=head1 NAME
+
+rt-assets-import - import assets to rt
+
+=head1 SYNOPSIS
+
+    rt-assets-import /path/to/assets.csv
+    rt-assets-import --update /path/to/assets.csv
+
+=head1 DESCRIPTION
+
+This script will import/update assets in csv to rt
