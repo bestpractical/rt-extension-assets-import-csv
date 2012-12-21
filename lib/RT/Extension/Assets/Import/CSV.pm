@@ -85,6 +85,8 @@ sub run {
             if ( $assets->Count > 1 ) {
                 RT->Logger->warning(
                     'Found multiple assets with the condition');
+                $skipped++;
+                next;
             }
             unless ( $args{Update} ) {
                 RT->Logger->debug(
