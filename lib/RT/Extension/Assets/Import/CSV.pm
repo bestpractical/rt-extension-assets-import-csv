@@ -47,7 +47,7 @@ sub run {
                 LookupType => 'RT::Asset',
             );
             if ( $cf->id ) {
-                $cfmap{$cfname} = $cf->id;
+                $cfmap{$cfname} = $cf;
             } else {
                 RT->Logger->warning(
                     "Missing custom field $cfname for column $field2csv->{$fieldname}, skipping");
@@ -118,11 +118,21 @@ sub run {
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
 
-                    my @current = @{$asset->CustomFieldValues( $cfmap{$cfname} )->ItemsArrayRef};
+                    if ($cfmap{$cfname}->Type eq "DateTime") {
+                        my $args = { Content => $value };
+                        $cfmap{$cfname}->_CanonicalizeValueDateTime( $args );
+                        $value = $args->{Content};
+                    } elsif ($cfmap{$cfname}->Type eq "Date") {
+                        my $args = { Content => $value };
+                        $cfmap{$cfname}->_CanonicalizeValueDate( $args );
+                        $value = $args->{Content};
+                    }
+
+                    my @current = @{$asset->CustomFieldValues( $cfmap{$cfname}->id )->ItemsArrayRef};
                     next if grep {$_->Content and $_->Content eq $value} @current;
 
                     my ($ok, $msg) = $asset->AddCustomFieldValue(
-                        Field => $cfmap{$cfname},
+                        Field => $cfmap{$cfname}->id,
                         Value => $value,
                     );
                     unless ($ok) {
@@ -146,7 +156,7 @@ sub run {
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
-                    $args{"CustomField-".$cfmap{$cfname}} = $value;
+                    $args{"CustomField-".$cfmap{$cfname}->id} = $value;
                 } else {
                     $args{$field} = $value;
                 }
