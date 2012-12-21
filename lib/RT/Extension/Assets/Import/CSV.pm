@@ -33,21 +33,30 @@ sub run {
         return (0, 0, 0);
     }
 
-    my $cf2csv = RT->Config->Get('AssetsImportFieldMapping');
-    my $csv2cf = { reverse %$cf2csv };
+    my $field2csv = RT->Config->Get('AssetsImportFieldMapping');
+    my $csv2fields = {};
+    push @{$csv2fields->{ $field2csv->{$_} }}, $_ for keys %{$field2csv};
+
     my %cfmap;
-    for my $cfname (keys %{ $cf2csv }) {
-        my $cf = RT::CustomField->new( $args{CurrentUser} );
-        $cf->LoadByCols(
-            Name       => $cfname,
-            LookupType => 'RT::Asset',
-        );
-        if ( $cf->id ) {
-            $cfmap{$cfname} = $cf->id;
-        } else {
+    for my $fieldname (keys %{ $field2csv }) {
+        if ($fieldname =~ /^CF\.(.*)/) {
+            my $cfname = $1;
+            my $cf = RT::CustomField->new( $args{CurrentUser} );
+            $cf->LoadByCols(
+                Name       => $cfname,
+                LookupType => 'RT::Asset',
+            );
+            if ( $cf->id ) {
+                $cfmap{$cfname} = $cf->id;
+            } else {
+                RT->Logger->warning(
+                    "Missing custom field $cfname for column $field2csv->{$fieldname}, skipping");
+                delete $field2csv->{$fieldname};
+            }
+        } elsif ($fieldname !~ /^(Name|Status|Description|Created|LastUpdated|Owner)$/) {
             RT->Logger->warning(
-                "Missing custom field $cfname for column $cf2csv->{$cfname}, skipping");
-            delete $cf2csv->{$cfname};
+                "Unknown asset field $fieldname for column $field2csv->{$fieldname}, skipping");
+            delete $field2csv->{$fieldname};
         }
     }
 
@@ -60,9 +69,9 @@ sub run {
     }
 
     RT->Logger->debug( "Found unused column '$_'" )
-        for grep {not $csv2cf->{$_}} keys %{ $items[0] };
-    RT->Logger->warning( "No column $_ found for CF ".$csv2cf->{$_} )
-        for grep {not exists $items[0]->{$_} } keys %{ $csv2cf };
+        for grep {not $csv2fields->{$_}} keys %{ $items[0] };
+    RT->Logger->warning( "No column $_ found for @{$csv2fields->{$_}}" )
+        for grep {not exists $items[0]->{$_} } keys %{ $csv2fields };
 
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
     my ( $created, $updated, $skipped ) = (0) x 3;
@@ -79,9 +88,8 @@ sub run {
             next;
         }
 
-        my $asset;
         my $assets = RT::Assets->new( $args{CurrentUser} );
-        my $id_value = $item->{$cf2csv->{"CF.$unique"}};
+        my $id_value = $item->{$field2csv->{"CF.$unique"}};
         $assets->LimitCustomField(
             CUSTOMFIELD => $unique_cf->id,
             VALUE       => $id_value,
@@ -103,27 +111,48 @@ sub run {
                 next;
             }
 
-            $asset = $assets->First;
+            my $asset = $assets->First;
+            for my $field ( keys %$field2csv ) {
+                my $value = $item->{$field2csv->{$field}};
+                next unless defined $value and length $value;
+                if ($field =~ /^CF\.(.*)/) {
+                    my $cfname = $1;
+                    my ($ok, $msg) = $asset->AddCustomFieldValue(
+                        Field => $cfmap{$cfname},
+                        Value => $value,
+                    );
+                    unless ($ok) {
+                        RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
+                    }
+                } elsif ($asset->$field ne $value) {
+                    my $method = "Set" . $field;
+                    my ($ok, $msg) = $asset->$method( $value );
+                    unless ($ok) {
+                        RT->Logger->error("Failed to set $field to $value for row $1: $msg");
+                    }
+                }
+            }
             $updated++;
         } else {
-            $asset = RT::Asset->new( $args{CurrentUser} );
-            my ($ok, $msg) = $asset->Create();
+            my $asset = RT::Asset->new( $args{CurrentUser} );
+            my %args;
+
+            for my $field (keys %$field2csv ) {
+                my $value = $item->{$field2csv->{$field}};
+                next unless defined $value and length $value;
+                if ($field =~ /^CF\.(.*)/) {
+                    my $cfname = $1;
+                    $args{"CustomField-".$cfmap{$cfname}} = $value;
+                } else {
+                    $args{$field} = $value;
+                }
+            }
+
+            my ($ok, $msg) = $asset->Create( %args );
             if ($ok) {
                 $created++;
             } else {
                 RT->Logger->error("Failed to create asset for row $i: $msg");
-            }
-        }
-
-        for my $field ( keys %$item ) {
-            if ( defined $item->{$field} and length $item->{$field} and $cfmap{$field} ) {
-                my ($ok, $msg) = $asset->AddCustomFieldValue(
-                    Field => $cfmap{$field},
-                    Value => $item->{$field},
-                );
-                unless ($ok) {
-                    RT->Logger->error("Failed to set CF ".$csv2cf->{$field}." to ".$item->{$field}." for row $i: $msg");
-                }
             }
         }
     }
