@@ -21,9 +21,7 @@ use RT::Interface::CLI qw(CleanEnv GetCurrentUser);
 CleanEnv();
 
 RT->LoadConfig();
-
-RT->Config->Set( LogToScreen => $opt{debug} ? 'debug' : 'warning' );
-
+RT->Config->Set( LogToSTDERR => $opt{debug} ? 'debug' : 'warning' );
 RT->Init();
 
 require RT::Extension::Assets::Import::CSV;
