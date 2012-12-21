@@ -33,46 +33,38 @@ sub run {
         return (0, 0, 0);
     }
 
-    my @items = $class->parse_csv( $args{File} );
-
     my $map   = RT->Config->Get('AssetsImportFieldMapping');
     my $r_map = { reverse %$map };
 
     my @required_columns = map { $r_map->{$_} } $identified_field;
 
-    my ( $created, $updated, $skipped ) = (0) x 3;
-
-    my $first = 1;
-
+    my @items = $class->parse_csv( $args{File} );
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
 
+    my %cfmap;
+    for my $field ( keys %{ $items[0] } ) {
+        my $cf = RT::CustomField->new( $args{CurrentUser} );
+        unless ($map->{$field}) {
+            RT->Logger->debug( "No mapping for import field '$field', skipping" );
+            next;
+        }
+        $cf->LoadByCols(
+            Name       => $map->{$field},
+            LookupType => 'RT::Asset',
+        );
+        if ( $cf->id ) {
+            $cfmap{$field} = $cf->id;
+        } else {
+            RT->Logger->warning(
+                "Missing custom field $map->{$field} for column $field, skipping");
+        }
+    }
+
+
+    my ( $created, $updated, $skipped ) = (0) x 3;
     my $i = 0;
     for my $item (@items) {
         $i++;
-        my @fields;
-
-        if ($first) {
-            for my $field (keys %$item) {
-                unless ($map->{$field}) {
-                    RT->Logger->debug("No mapping for import field '$field', skipping");
-                    next;
-                }
-                push @fields, $field;
-            }
-
-            for my $field (@fields) {
-                my $cf = RT::CustomField->new( $args{CurrentUser} );
-                $cf->LoadByCols(
-                    Name       => $map->{$field},
-                    LookupType => 'RT::Asset',
-                );
-                unless ( $cf->id ) {
-                    RT->Logger->warning(
-                        "Missing custom field $map->{$field}, skipping");
-                }
-            }
-            $first = 0;
-        }
 
         my @missing = grep {not $item->{$_}} @required_columns;
         if (@missing) {
@@ -111,10 +103,10 @@ sub run {
             $created++;
         }
 
-        for my $field (@fields) {
-            if ( defined $item->{$field} and length $item->{$field} ) {
+        for my $field ( keys %$item ) {
+            if ( defined $item->{$field} and length $item->{$field} and $cfmap{$field} ) {
                 $asset->AddCustomFieldValue(
-                    Field => $map->{$field},
+                    Field => $cfmap{$field},
                     Value => $item->{$field},
                 );
             }
