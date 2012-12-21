@@ -1,5 +1,5 @@
 ---
-abstract: 'RT Extension-Assets-Import Extension'
+abstract: 'RT Extension-Assets-Import-CSV Extension'
 author:
   - 'sunnavy <sunnavy@bestpractical.com>'
 build_requires:
@@ -13,7 +13,7 @@ license: gplv2
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
-name: RT-Extension-Assets-Import
+name: RT-Extension-Assets-Import-CSV
 no_index:
   directory:
     - inc

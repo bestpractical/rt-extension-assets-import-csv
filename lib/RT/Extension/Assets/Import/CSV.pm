@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-package RT::Extension::Assets::Import;
+package RT::Extension::Assets::Import::CSV;
 
 our $VERSION = '0.01';
 
@@ -155,7 +155,7 @@ sub parse_csv {
 
 =head1 NAME
 
-RT-Extension-Assets-Import - RT Assets Import
+RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
 
 =head1 INSTALLATION
 
@@ -183,9 +183,9 @@ in case changes need to be made to your database.
 
 Add this line:
 
-    Set(@Plugins, qw(RT::Extension::Assets::Import));
+    Set(@Plugins, qw(RT::Extension::Assets::Import::CSV));
 
-or add C<RT::Extension::Assets::Import> to your existing C<@Plugins> line.
+or add C<RT::Extension::Assets::Import::CSV> to your existing C<@Plugins> line.
 
 Configure imported fields:
 
@@ -213,8 +213,8 @@ sunnavy <sunnavy@bestpractical.com>
 =head1 BUGS
 
 All bugs should be reported via
-L<http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Import>
-or L<bug-RT-Extension-Assets-Import@rt.cpan.org>.
+L<http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Import-CSV>
+or L<bug-RT-Extension-Assets-Import-CSV@rt.cpan.org>.
 
 
 =head1 LICENSE AND COPYRIGHT

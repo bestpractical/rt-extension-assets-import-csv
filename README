@@ -1,5 +1,5 @@
 NAME
-    RT-Extension-Assets-Import - RT Assets Import
+    RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
 
 INSTALLATION
     perl Makefile.PL
@@ -19,10 +19,10 @@ INSTALLATION
     Edit your /opt/rt4/etc/RT_SiteConfig.pm
         Add this line:
 
-            Set(@Plugins, qw(RT::Extension::Assets::Import));
+            Set(@Plugins, qw(RT::Extension::Assets::Import::CSV));
 
-        or add "RT::Extension::Assets::Import" to your existing @Plugins
-        line.
+        or add "RT::Extension::Assets::Import::CSV" to your existing
+        @Plugins line.
 
         Configure imported fields:
 
@@ -46,7 +46,7 @@ AUTHOR
 BUGS
     All bugs should be reported via
     <http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Im
-    port> or bug-RT-Extension-Assets-Import@rt.cpan.org.
+    port-CSV> or bug-RT-Extension-Assets-Import-CSV@rt.cpan.org.
 
 LICENSE AND COPYRIGHT
     This software is Copyright (c) 2012 by Best Practical Solutions

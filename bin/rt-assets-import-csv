@@ -26,7 +26,7 @@ RT->Config->Set( LogToScreen => $opt{debug} ? 'debug' : 'warning' );
 
 RT->Init();
 
-require RT::Extension::Assets::Import;
+require RT::Extension::Assets::Import::CSV;
 
 my $current_user = GetCurrentUser();
 
@@ -35,7 +35,7 @@ unless ( $current_user->Id ) {
     exit(1);
 }
 
-my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import->run(
+my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import::CSV->run(
     CurrentUser => $current_user,
     File        => $file,
     Update      => $opt{update},
