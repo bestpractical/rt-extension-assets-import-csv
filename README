@@ -27,7 +27,6 @@ INSTALLATION
         Configure imported fields:
 
             Set( $AssetsImportIdentifiedField, 'Service Tag', );
-            Set( @AssetsImportRequiredFields, 'Service Tag', );
             Set( %AssetsImportFieldMapping,
                 # 'CSV field name'  => 'RT custom field name'
                 'serviceTag'        => 'Service Tag',

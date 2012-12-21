@@ -38,7 +38,7 @@ sub run {
     my $map   = RT->Config->Get('AssetsImportFieldMapping');
     my $r_map = { reverse %$map };
 
-    my $required_fields = RT->Config->Get('AssetsImportRequiredFields') || [];
+    my @required_columns = map { $r_map->{$_} } $identified_field;
 
     my ( $created, $updated, $skipped ) = (0) x 3;
 
@@ -47,7 +47,6 @@ sub run {
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
 
     my $i = 0;
-  OUTER:
     for my $item (@items) {
         $i++;
         my @fields;
@@ -75,13 +74,12 @@ sub run {
             $first = 0;
         }
 
-        for my $field (@$required_fields) {
-            unless ( $item->{ $r_map->{$field} } ) {
-                RT->Logger->warning(
-                    "Missing $r_map->{$field} at row $i, skipping");
-                $skipped++;
-                next OUTER;
-            }
+        my @missing = grep {not $item->{$_}} @required_columns;
+        if (@missing) {
+            RT->Logger->warning(
+                "Missing value for required column@{[@missing > 1 ? 's':'']} @missing at row $i, skipping");
+            $skipped++;
+            next;
         }
 
         my $asset;
@@ -189,7 +187,6 @@ or add C<RT::Extension::Assets::Import::CSV> to your existing C<@Plugins> line.
 Configure imported fields:
 
     Set( $AssetsImportIdentifiedField, 'Service Tag', );
-    Set( @AssetsImportRequiredFields, 'Service Tag', );
     Set( %AssetsImportFieldMapping,
         # 'CSV field name'  => 'RT custom field name'
         'serviceTag'        => 'Service Tag',
