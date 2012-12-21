@@ -29,7 +29,7 @@ require RT::Extension::Assets::Import::CSV;
 my $current_user = GetCurrentUser();
 
 unless ( $current_user->Id ) {
-    print "No RT user found. Please consult your RT administrator.\n";
+    RT->Logger->error("No RT user found. Please consult your RT administrator.");
     exit(1);
 }
 
