@@ -53,7 +53,7 @@ sub run {
                     LookupType => 'RT::Asset',
                 );
                 unless ( $cf->id ) {
-                    $RT::Logger->debug(
+                    $RT::Logger->warning(
                         "Missing custom field $map->{$field}, skipping");
                 }
             }
@@ -62,7 +62,7 @@ sub run {
 
         for my $field (@$required_fields) {
             unless ( $item->{ $r_map->{$field} } ) {
-                $RT::Logger->debug(
+                $RT::Logger->warning(
                     "Missing $r_map->{$field} at row $i, skipping");
                 $skipped++;
                 next OUTER;
@@ -78,7 +78,7 @@ sub run {
 
         if ( $assets->Count ) {
             if ( $assets->Count > 1 ) {
-                $RT::Logger->debug(
+                $RT::Logger->warning(
                     'Found multiple assets with the condition');
             }
             unless ( $args{Update} ) {
