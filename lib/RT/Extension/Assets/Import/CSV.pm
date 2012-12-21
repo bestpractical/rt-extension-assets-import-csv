@@ -117,6 +117,10 @@ sub run {
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
+
+                    my @current = @{$asset->CustomFieldValues( $cfmap{$cfname} )->ItemsArrayRef};
+                    next if grep {$_->Content and $_->Content eq $value} @current;
+
                     my ($ok, $msg) = $asset->AddCustomFieldValue(
                         Field => $cfmap{$cfname},
                         Value => $value,
