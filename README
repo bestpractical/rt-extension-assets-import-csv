@@ -34,11 +34,6 @@ INSTALLATION
                 'serialNo'          => 'Serial #',
             );
 
-    Clear your mason cache
-            rm -rf /opt/rt4/var/mason_data/obj
-
-    Restart your webserver
-
 AUTHOR
     sunnavy <sunnavy@bestpractical.com>
 
