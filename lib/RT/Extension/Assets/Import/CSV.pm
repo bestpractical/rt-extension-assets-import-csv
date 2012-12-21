@@ -148,9 +148,11 @@ sub run {
                 }
             }
 
-            my ($ok, $msg) = $asset->Create( %args );
+            my ($ok, $msg, $err) = $asset->Create( %args );
             if ($ok) {
                 $created++;
+            } elsif ($err and @{$err}) {
+                RT->Logger->warning(join("\n", "Warnings during create for row $i: ", @{$err}) );
             } else {
                 RT->Logger->error("Failed to create asset for row $i: $msg");
             }
