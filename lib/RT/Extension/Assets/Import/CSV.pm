@@ -33,38 +33,43 @@ sub run {
         return (0, 0, 0);
     }
 
-    my $map   = RT->Config->Get('AssetsImportFieldMapping');
-    my $r_map = { reverse %$map };
-
-    my @required_columns = map { $r_map->{$_} } $identified_field;
-
-    my @items = $class->parse_csv( $args{File} );
-    RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
-
+    my $cf2csv = RT->Config->Get('AssetsImportFieldMapping');
+    my $csv2cf = { reverse %$cf2csv };
     my %cfmap;
-    for my $field ( keys %{ $items[0] } ) {
+    for my $cfname (keys %{ $cf2csv }) {
         my $cf = RT::CustomField->new( $args{CurrentUser} );
-        unless ($map->{$field}) {
-            RT->Logger->debug( "No mapping for import field '$field', skipping" );
-            next;
-        }
         $cf->LoadByCols(
-            Name       => $map->{$field},
+            Name       => $cfname,
             LookupType => 'RT::Asset',
         );
         if ( $cf->id ) {
-            $cfmap{$field} = $cf->id;
+            $cfmap{$cfname} = $cf->id;
         } else {
             RT->Logger->warning(
-                "Missing custom field $map->{$field} for column $field, skipping");
+                "Missing custom field $cfname for column $cf2csv->{$cfname}, skipping");
+            delete $cf2csv->{$cfname};
         }
     }
 
+    my @required_columns = map { $cf2csv->{$_} } $identified_field;
 
+    my @items = $class->parse_csv( $args{File} );
+    unless (@items) {
+        RT->Logger->warning( "No items found in file $args{File}" );
+        return (0, 0, 0);
+    }
+
+    RT->Logger->debug( "Found unused column '$_'" )
+        for grep {not $csv2cf->{$_}} keys %{ $items[0] };
+    RT->Logger->warning( "No column $_ found for CF ".$csv2cf->{$_} )
+        for grep {not exists $items[0]->{$_} } keys %{ $csv2cf };
+
+    RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
     my ( $created, $updated, $skipped ) = (0) x 3;
-    my $i = 0;
+    my $i = 1; # Because of header row
     for my $item (@items) {
         $i++;
+        next unless grep {/\S/} values %{$item};
 
         my @missing = grep {not $item->{$_}} @required_columns;
         if (@missing) {
@@ -76,7 +81,7 @@ sub run {
 
         my $asset;
         my $assets = RT::Assets->new( $args{CurrentUser} );
-        my $id_value = $item->{$r_map->{$identified_field}};
+        my $id_value = $item->{$cf2csv->{$identified_field}};
         $assets->LimitCustomField(
             CUSTOMFIELD => $identified_cf->id,
             VALUE       => $id_value,
@@ -117,7 +122,7 @@ sub run {
                     Value => $item->{$field},
                 );
                 unless ($ok) {
-                    RT->Logger->error("Failed to set CF ".$map->{$field}." for for $i: $msg");
+                    RT->Logger->error("Failed to set CF ".$csv2cf->{$field}." to ".$item->{$field}." for row $i: $msg");
                 }
             }
         }
@@ -188,12 +193,12 @@ or add C<RT::Extension::Assets::Import::CSV> to your existing C<@Plugins> line.
 
 Configure imported fields:
 
-    Set( $AssetsImportIdentifiedField, 'Service Tag', );
+    Set( $AssetsImportIdentifiedField, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
-        # 'CSV field name'  => 'RT custom field name'
-        'serviceTag'        => 'Service Tag',
-        'building'          => 'Location',
-        'serialNo'          => 'Serial #',
+        # 'RT custom field name' => 'CSV field name'
+        'Service Tag'            => 'serviceTag',
+        'Location'               => 'building',
+        'Serial #'               => 'serialNo',
     );
 
 =back
