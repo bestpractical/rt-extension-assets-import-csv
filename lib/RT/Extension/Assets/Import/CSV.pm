@@ -76,21 +76,23 @@ sub run {
 
         my $asset;
         my $assets = RT::Assets->new( $args{CurrentUser} );
+        my $id_value = $item->{$r_map->{$identified_field}};
         $assets->LimitCustomField(
             CUSTOMFIELD => $identified_cf->id,
-            VALUE       => $item->{$r_map->{$identified_field}},
+            VALUE       => $id_value,
         );
 
         if ( $assets->Count ) {
             if ( $assets->Count > 1 ) {
                 RT->Logger->warning(
-                    'Found multiple assets with the condition');
+                    "Found multiple assets for identifying CF $identified_field = $id_value"
+                );
                 $skipped++;
                 next;
             }
             unless ( $args{Update} ) {
                 RT->Logger->debug(
-"Found existing asset at row $i but without 'Update' option, skipping."
+                    "Found existing asset at row $i but without 'Update' option, skipping."
                 );
                 $skipped++;
                 next;
@@ -98,19 +100,25 @@ sub run {
 
             $asset = $assets->First;
             $updated++;
-        }
-        else {
+        } else {
             $asset = RT::Asset->new( $args{CurrentUser} );
-            $asset->Create();
-            $created++;
+            my ($ok, $msg) = $asset->Create();
+            if ($ok) {
+                $created++;
+            } else {
+                RT->Logger->error("Failed to create asset for row $i: $msg");
+            }
         }
 
         for my $field ( keys %$item ) {
             if ( defined $item->{$field} and length $item->{$field} and $cfmap{$field} ) {
-                $asset->AddCustomFieldValue(
+                my ($ok, $msg) = $asset->AddCustomFieldValue(
                     Field => $cfmap{$field},
                     Value => $item->{$field},
                 );
+                unless ($ok) {
+                    RT->Logger->error("Failed to set CF ".$map->{$field}." for for $i: $msg");
+                }
             }
         }
     }
