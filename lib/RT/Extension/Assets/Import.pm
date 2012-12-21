@@ -16,7 +16,7 @@ sub run {
 
     my $identified_field = RT->Config->Get('AssetsImportIdentifiedField');
     unless ($identified_field) {
-        $RT::Logger->error(
+        RT->Logger->error(
 'Missing identified field, please set config AssetsImportIdentifiedField'
         );
     }
@@ -38,7 +38,7 @@ sub run {
 
     my $first = 1;
 
-    $RT::Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
+    RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
 
     my $i = 0;
   OUTER:
@@ -53,7 +53,7 @@ sub run {
                     LookupType => 'RT::Asset',
                 );
                 unless ( $cf->id ) {
-                    $RT::Logger->warning(
+                    RT->Logger->warning(
                         "Missing custom field $map->{$field}, skipping");
                 }
             }
@@ -62,7 +62,7 @@ sub run {
 
         for my $field (@$required_fields) {
             unless ( $item->{ $r_map->{$field} } ) {
-                $RT::Logger->warning(
+                RT->Logger->warning(
                     "Missing $r_map->{$field} at row $i, skipping");
                 $skipped++;
                 next OUTER;
@@ -78,11 +78,11 @@ sub run {
 
         if ( $assets->Count ) {
             if ( $assets->Count > 1 ) {
-                $RT::Logger->warning(
+                RT->Logger->warning(
                     'Found multiple assets with the condition');
             }
             unless ( $args{Update} ) {
-                $RT::Logger->debug(
+                RT->Logger->debug(
 "Found existing asset at row $i but without 'Update' option, skipping."
                 );
                 $skipped++;
