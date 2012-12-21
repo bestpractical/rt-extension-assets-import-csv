@@ -15,21 +15,21 @@ sub run {
         @_,
     );
 
-    my $identified_field = RT->Config->Get('AssetsImportIdentifiedField');
-    unless ($identified_field) {
+    my $unique = RT->Config->Get('AssetsImportUniqueCF');
+    unless ($unique) {
         RT->Logger->error(
-'Missing identified field, please set config AssetsImportIdentifiedField'
+            'Missing identified field, please set config AssetsImportUniqueCF'
         );
         return (0,0,0);
     }
 
-    my $identified_cf = RT::CustomField->new( $args{CurrentUser} );
-    $identified_cf->LoadByCols(
-        Name       => $identified_field,
+    my $unique_cf = RT::CustomField->new( $args{CurrentUser} );
+    $unique_cf->LoadByCols(
+        Name       => $unique,
         LookupType => 'RT::Asset',
     );
-    unless ($identified_cf->id) {
-        RT->Logger->error( "Can't find custom field $identified_field for RT::Assets" );
+    unless ($unique_cf->id) {
+        RT->Logger->error( "Can't find custom field $unique for RT::Assets" );
         return (0, 0, 0);
     }
 
@@ -51,7 +51,7 @@ sub run {
         }
     }
 
-    my @required_columns = map { $cf2csv->{$_} } $identified_field;
+    my @required_columns = ( $field2csv->{"CF.$unique"} );
 
     my @items = $class->parse_csv( $args{File} );
     unless (@items) {
@@ -81,16 +81,16 @@ sub run {
 
         my $asset;
         my $assets = RT::Assets->new( $args{CurrentUser} );
-        my $id_value = $item->{$cf2csv->{$identified_field}};
+        my $id_value = $item->{$cf2csv->{"CF.$unique"}};
         $assets->LimitCustomField(
-            CUSTOMFIELD => $identified_cf->id,
+            CUSTOMFIELD => $unique_cf->id,
             VALUE       => $id_value,
         );
 
         if ( $assets->Count ) {
             if ( $assets->Count > 1 ) {
                 RT->Logger->warning(
-                    "Found multiple assets for identifying CF $identified_field = $id_value"
+                    "Found multiple assets for $unique = $id_value"
                 );
                 $skipped++;
                 next;
@@ -193,7 +193,7 @@ or add C<RT::Extension::Assets::Import::CSV> to your existing C<@Plugins> line.
 
 Configure imported fields:
 
-    Set( $AssetsImportIdentifiedField, 'Service Tag' );
+    Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
         # 'RT custom field name' => 'CSV field name'
         'Service Tag'            => 'serviceTag',

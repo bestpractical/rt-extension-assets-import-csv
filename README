@@ -26,12 +26,12 @@ INSTALLATION
 
         Configure imported fields:
 
-            Set( $AssetsImportIdentifiedField, 'Service Tag', );
+            Set( $AssetsImportUniqueCF, 'Service Tag' );
             Set( %AssetsImportFieldMapping,
-                # 'CSV field name'  => 'RT custom field name'
-                'serviceTag'        => 'Service Tag',
-                'building'          => 'Location',
-                'serialNo'          => 'Serial #',
+                # 'RT custom field name' => 'CSV field name'
+                'Service Tag'            => 'serviceTag',
+                'Location'               => 'building',
+                'Serial #'               => 'serialNo',
             );
 
 AUTHOR
