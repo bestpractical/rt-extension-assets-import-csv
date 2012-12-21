@@ -112,6 +112,7 @@ sub run {
             }
 
             my $asset = $assets->First;
+            my $changes;
             for my $field ( keys %$field2csv ) {
                 my $value = $item->{$field2csv->{$field}};
                 next unless defined $value and length $value;
@@ -131,6 +132,7 @@ sub run {
                     my @current = @{$asset->CustomFieldValues( $cfmap{$cfname}->id )->ItemsArrayRef};
                     next if grep {$_->Content and $_->Content eq $value} @current;
 
+                    $changes++;
                     my ($ok, $msg) = $asset->AddCustomFieldValue(
                         Field => $cfmap{$cfname}->id,
                         Value => $value,
@@ -139,6 +141,7 @@ sub run {
                         RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
                     }
                 } elsif ($asset->$field ne $value) {
+                    $changes++;
                     my $method = "Set" . $field;
                     my ($ok, $msg) = $asset->$method( $value );
                     unless ($ok) {
@@ -146,7 +149,11 @@ sub run {
                     }
                 }
             }
-            $updated++;
+            if ($changes) {
+                $updated++;
+            } else {
+                $skipped++;
+            }
         } else {
             my $asset = RT::Asset->new( $args{CurrentUser} );
             my %args;
