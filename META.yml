@@ -19,7 +19,6 @@ no_index:
     - inc
 requires:
   RT::Extension::Assets: 0
-  Text::CSV: 0
   Text::CSV_XS: 0
 resources:
   license: http://opensource.org/licenses/gpl-license.php

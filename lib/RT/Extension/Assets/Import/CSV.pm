@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 package RT::Extension::Assets::Import::CSV;
+use Text::CSV_XS;
 
 our $VERSION = '0.01';
 
@@ -128,10 +129,9 @@ sub run {
 sub parse_csv {
     my $class = shift;
     my $file  = shift;
-    require Text::CSV;
 
     my @rows;
-    my $csv = Text::CSV->new( { binary => 1 } );
+    my $csv = Text::CSV_XS->new( { binary => 1 } );
 
     open my $fh, '<', $file or die "failed to read $file: $!";
     my $header = $csv->getline($fh);

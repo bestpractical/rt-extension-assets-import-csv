@@ -7,7 +7,6 @@ readme_from 'lib/RT/Extension/Assets/Import/CSV.pm';
 license  'gplv2';
 
 requires 'RT::Extension::Assets';
-requires 'Text::CSV';
 requires 'Text::CSV_XS';
 
 sign;
