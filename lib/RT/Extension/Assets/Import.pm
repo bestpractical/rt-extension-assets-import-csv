@@ -19,6 +19,7 @@ sub run {
         RT->Logger->error(
 'Missing identified field, please set config AssetsImportIdentifiedField'
         );
+        return (0,0,0);
     }
 
     my $identified_cf = RT::CustomField->new( $args{CurrentUser} );
@@ -26,6 +27,11 @@ sub run {
         Name       => $identified_field,
         LookupType => 'RT::Asset',
     );
+    unless ($identified_cf->id) {
+        RT->Logger->error(
+            "Unable to load identified field, please check that it exists and the exact name");
+        return (0,0,0);
+    }
 
     my @items = $class->parse_csv( $args{File} );
 
