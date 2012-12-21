@@ -114,7 +114,7 @@ sub run {
         }
 
         for my $field (@fields) {
-            if ( defined $item->{$field} ) {
+            if ( defined $item->{$field} and length $item->{$field} ) {
                 $asset->AddCustomFieldValue(
                     Field => $map->{$field},
                     Value => $item->{$field},
