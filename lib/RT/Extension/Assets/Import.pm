@@ -50,9 +50,18 @@ sub run {
   OUTER:
     for my $item (@items) {
         $i++;
+        my @fields;
 
         if ($first) {
-            for my $field ( keys %$item ) {
+            for my $field (keys %$item) {
+                unless ($map->{$field}) {
+                    RT->Logger->debug("No mapping for import field '$field', skipping");
+                    next;
+                }
+                push @fields, $field;
+            }
+
+            for my $field (@fields) {
                 my $cf = RT::CustomField->new( $args{CurrentUser} );
                 $cf->LoadByCols(
                     Name       => $map->{$field},
@@ -104,7 +113,7 @@ sub run {
             $created++;
         }
 
-        for my $field ( keys %$item ) {
+        for my $field (@fields) {
             if ( defined $item->{$field} ) {
                 $asset->AddCustomFieldValue(
                     Field => $map->{$field},
