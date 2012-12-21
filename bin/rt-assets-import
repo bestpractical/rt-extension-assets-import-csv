@@ -31,7 +31,7 @@ require RT::Extension::Assets::Import;
 my $current_user = GetCurrentUser();
 
 unless ( $current_user->Id ) {
-    print "No RT user found. Please consult your RT administrator.";
+    print "No RT user found. Please consult your RT administrator.\n";
     exit(1);
 }
 
