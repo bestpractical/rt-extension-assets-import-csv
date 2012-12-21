@@ -29,9 +29,8 @@ sub run {
         LookupType => 'RT::Asset',
     );
     unless ($identified_cf->id) {
-        RT->Logger->error(
-            "Unable to load identified field, please check that it exists and the exact name");
-        return (0,0,0);
+        RT->Logger->error( "Can't find custom field $identified_field for RT::Assets" );
+        return (0, 0, 0);
     }
 
     my @items = $class->parse_csv( $args{File} );
