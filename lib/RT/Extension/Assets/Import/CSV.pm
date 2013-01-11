@@ -26,7 +26,7 @@ sub run {
     my $unique_cf = RT::CustomField->new( $args{CurrentUser} );
     $unique_cf->LoadByCols(
         Name       => $unique,
-        LookupType => 'RT::Asset',
+        LookupType => RT::Asset->CustomFieldLookupType,
     );
     unless ($unique_cf->id) {
         RT->Logger->error( "Can't find custom field $unique for RT::Assets" );
@@ -44,7 +44,7 @@ sub run {
             my $cf = RT::CustomField->new( $args{CurrentUser} );
             $cf->LoadByCols(
                 Name       => $cfname,
-                LookupType => 'RT::Asset',
+                LookupType => RT::Asset->CustomFieldLookupType,
             );
             if ( $cf->id ) {
                 $cfmap{$cfname} = $cf;
