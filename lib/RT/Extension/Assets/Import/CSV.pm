@@ -53,7 +53,7 @@ sub run {
                     "Missing custom field $cfname for column $field2csv->{$fieldname}, skipping");
                 delete $field2csv->{$fieldname};
             }
-        } elsif ($fieldname !~ /^(Name|Status|Description|Created|LastUpdated|Owner)$/) {
+        } elsif ($fieldname !~ /^(Name|Status|Description|Catalog|Created|LastUpdated|Owner)$/) {
             RT->Logger->warning(
                 "Unknown asset field $fieldname for column $field2csv->{$fieldname}, skipping");
             delete $field2csv->{$fieldname};
