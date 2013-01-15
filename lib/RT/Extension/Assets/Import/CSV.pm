@@ -6,6 +6,10 @@ use Text::CSV_XS;
 
 our $VERSION = '0.01';
 
+sub _column {
+    ref($_[0]) ? "static value '${$_[0]}'" : "column $_[0]"
+}
+
 sub run {
     my $class = shift;
     my %args  = (
@@ -26,7 +30,7 @@ sub run {
     my $unique_cf = RT::CustomField->new( $args{CurrentUser} );
     $unique_cf->LoadByCols(
         Name       => $unique,
-        LookupType => 'RT::Asset',
+        LookupType => RT::Asset->CustomFieldLookupType,
     );
     unless ($unique_cf->id) {
         RT->Logger->error( "Can't find custom field $unique for RT::Assets" );
@@ -35,7 +39,8 @@ sub run {
 
     my $field2csv = RT->Config->Get('AssetsImportFieldMapping');
     my $csv2fields = {};
-    push @{$csv2fields->{ $field2csv->{$_} }}, $_ for keys %{$field2csv};
+    push @{$csv2fields->{ $field2csv->{$_} }}, $_
+        for grep { not ref $field2csv->{$_} } keys %{$field2csv};
 
     my %cfmap;
     for my $fieldname (keys %{ $field2csv }) {
@@ -44,18 +49,18 @@ sub run {
             my $cf = RT::CustomField->new( $args{CurrentUser} );
             $cf->LoadByCols(
                 Name       => $cfname,
-                LookupType => 'RT::Asset',
+                LookupType => RT::Asset->CustomFieldLookupType,
             );
             if ( $cf->id ) {
                 $cfmap{$cfname} = $cf;
             } else {
                 RT->Logger->warning(
-                    "Missing custom field $cfname for column $field2csv->{$fieldname}, skipping");
+                    "Missing custom field $cfname for "._column($field2csv->{$fieldname}).", skipping");
                 delete $field2csv->{$fieldname};
             }
-        } elsif ($fieldname !~ /^(Name|Status|Description|Created|LastUpdated|Owner)$/) {
+        } elsif ($fieldname !~ /^(Name|Status|Description|Catalog|Created|LastUpdated|Owner)$/) {
             RT->Logger->warning(
-                "Unknown asset field $fieldname for column $field2csv->{$fieldname}, skipping");
+                "Unknown asset field $fieldname for "._column($field2csv->{$fieldname}).", skipping");
             delete $field2csv->{$fieldname};
         }
     }
@@ -114,7 +119,9 @@ sub run {
             my $asset = $assets->First;
             my $changes;
             for my $field ( keys %$field2csv ) {
-                my $value = $item->{$field2csv->{$field}};
+                my $value = ref($field2csv->{$field})
+                    ? ${$field2csv->{$field}}
+                    : $item->{$field2csv->{$field}};
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
@@ -159,7 +166,9 @@ sub run {
             my %args;
 
             for my $field (keys %$field2csv ) {
-                my $value = $item->{$field2csv->{$field}};
+                my $value = ref($field2csv->{$field})
+                    ? ${$field2csv->{$field}}
+                    : $item->{$field2csv->{$field}};
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
@@ -252,6 +261,23 @@ Configure imported fields:
         'Location'               => 'building',
         'Serial #'               => 'serialNo',
     );
+
+If you want to set an RT column or custom field to a static value for all
+imported assets, proceed the "CSV field name" (right hand side of the mapping)
+with a slash, like so:
+
+    Set( %AssetsImportFieldMapping,
+        # 'RT custom field name' => 'CSV field name'
+        'Service Tag'            => 'serviceTag',
+        'Location'               => 'building',
+        'Serial #'               => 'serialNo',
+        'Catalog'                => \'Hardware',
+    );
+
+Every imported asset will now be added to the Hardware catalog in RT.  This
+feature is particularly useful for setting the asset catalog, but may also be
+useful when importing assets from CSV sources you don't control (and don't want
+to modify each time).
 
 =back
 
