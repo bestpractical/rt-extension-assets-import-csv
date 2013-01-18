@@ -6,13 +6,16 @@ all_from 'lib/RT/Extension/Assets/Import/CSV.pm';
 readme_from 'lib/RT/Extension/Assets/Import/CSV.pm';
 license  'gplv2';
 
-# XXX: This should be reported by M::I::RTx
-my ($lib_path) = $INC{'RT.pm'} =~ /^(.*)[\\\/]/;
-my $local_lib_path = "$RT::LocalPath/lib";
-unshift @INC, $local_lib_path, $lib_path;
+use Config;
+my $perl_path = $Config{perlpath};
+$perl_path .= $Config{_exe}
+    if $^O ne 'VMS' and $perl_path !~ m/$Config{_exe}$/i;
+
 substitute( {
-        RT_LIB_PATH => join( ' ', $local_lib_path, $lib_path ),
+        RT_LIB_PATH => "$RT::LocalPath/lib " . File::Basename::dirname( $INC{'RT.pm'} ),
+        PERL        => $perl_path,
     },
+    { sufix => ".in" },
     'bin/rt-assets-import-csv',
 );
 
