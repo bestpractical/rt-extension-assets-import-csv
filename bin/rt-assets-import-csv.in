@@ -9,12 +9,17 @@ use lib qw(/opt/rt4/local/lib /opt/rt4/lib);
 
 use Getopt::Long;
 my %opt;
-GetOptions( \%opt, 'help|h', 'update|u', 'debug|d' );
+GetOptions( \%opt, 'help|h', 'update|u', 'debug|d', 'mdy', 'dmy' );
 my $file = shift @ARGV;
 
 if ( $opt{help} || !$file ) {
     require Pod::Usage;
     Pod::Usage::pod2usage( { verbose => 2 } );
+    exit;
+}
+
+if ($opt{mdy} and $opt{dmy}) {
+    Pod::Usage::pod2usage("Only one of --mdy or --dmy can be provided");
     exit;
 }
 
@@ -25,6 +30,8 @@ CleanEnv();
 
 RT->LoadConfig();
 RT->Config->Set( LogToSTDERR => $opt{debug} ? 'debug' : 'warning' );
+RT->Config->Set( DateDayBeforeMonth => 1 ) if $opt{dmy};
+RT->Config->Set( DateDayBeforeMonth => 0 ) if $opt{mdy};
 RT->Init();
 
 require RT::Extension::Assets::Import::CSV;
@@ -73,6 +80,12 @@ L<RT::Extension::Assets::Import::CSV> for configuration.
 Without this option, existing assets (as determined by matching
 C<AssetsImportUniqueCF> values) are left untouched.  With this option
 provided, records will be updated based on their values in the CSV.
+
+=item C<--mdy>, C<--dmy>
+
+Force RT to parse dates as C<mm/dd/yy> or C<dd/mm/yy>, respectively.  In
+the absence of this option, RT will default to the C<DateDayBeforeMonth>
+setting, which defaults to C<dd/mm/yy>.
 
 =item C<--debug>
 
