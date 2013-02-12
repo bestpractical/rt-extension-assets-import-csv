@@ -61,4 +61,21 @@ rt-assets-import - import assets to rt
 
 =head1 DESCRIPTION
 
-This script will import/update assets in csv to rt
+This script will import/update assets from a CSV into rt.  See
+L<RT::Extension::Assets::Import::CSV> for configuration.
+
+=head1 OPTIONS
+
+=over
+
+=item C<--update>
+
+Without this option, existing assets (as determined by matching
+C<AssetsImportUniqueCF> values) are left untouched.  With this option
+provided, records will be updated based on their values in the CSV.
+
+=item C<--debug>
+
+Provide verbose output to STDERR during the import.
+
+=back
