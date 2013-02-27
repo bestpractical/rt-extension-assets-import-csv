@@ -166,12 +166,20 @@ sub run {
                     unless ($ok) {
                         RT->Logger->error("Failed to set $field to $value for row $i: $msg");
                     }
-                } elsif ($asset->$field ne $value) {
-                    $changes++;
-                    my $method = "Set" . $field;
-                    my ($ok, $msg) = $asset->$method( $value );
-                    unless ($ok) {
-                        RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                } else {
+                    if ($field eq "Catalog") {
+                        my $catalog = RT::Catalog->new( $args{CurrentUser} );
+                        $catalog->Load( $value );
+                        $value = $catalog->id;
+                    }
+
+                    if ($asset->$field ne $value) {
+                        $changes++;
+                        my $method = "Set" . $field;
+                        my ($ok, $msg) = $asset->$method( $value );
+                        unless ($ok) {
+                            RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                        }
                     }
                 }
             }
