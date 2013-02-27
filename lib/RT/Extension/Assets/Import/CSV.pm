@@ -7,7 +7,10 @@ use Text::CSV_XS;
 our $VERSION = '0.01';
 
 sub _column {
-    ref($_[0]) ? "static value '${$_[0]}'" : "column $_[0]"
+    ref($_[0]) ? (ref($_[0]) eq "CODE" ?
+                      "code reference" :
+                      "static value '${$_[0]}'")
+        : "column $_[0]"
 }
 
 sub run {
@@ -94,7 +97,7 @@ sub run {
         }
 
         my $assets = RT::Assets->new( $args{CurrentUser} );
-        my $id_value = $item->{$field2csv->{"CF.$unique"}};
+        my $id_value = $class->get_value( $field2csv->{"CF.$unique"}, $item );
         $assets->LimitCustomField(
             CUSTOMFIELD => $unique_cf->id,
             VALUE       => $id_value,
@@ -119,9 +122,7 @@ sub run {
             my $asset = $assets->First;
             my $changes;
             for my $field ( keys %$field2csv ) {
-                my $value = ref($field2csv->{$field})
-                    ? ${$field2csv->{$field}}
-                    : $item->{$field2csv->{$field}};
+                my $value = $class->get_value( $field2csv->{$field}, $item );
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
@@ -166,9 +167,7 @@ sub run {
             my %args;
 
             for my $field (keys %$field2csv ) {
-                my $value = ref($field2csv->{$field})
-                    ? ${$field2csv->{$field}}
-                    : $item->{$field2csv->{$field}};
+                my $value = $class->get_value($field2csv->{$field}, $item);
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
@@ -189,6 +188,18 @@ sub run {
         }
     }
     return ( $created, $updated, $skipped );
+}
+
+sub get_value {
+    my $class = shift;
+    my ($from, $data) = @_;
+    if (not ref $from) {
+        return $data->{$from};
+    } elsif (ref($from) eq "CODE") {
+        return $from->($data);
+    } else {
+        return $$from;
+    }
 }
 
 sub parse_csv {
