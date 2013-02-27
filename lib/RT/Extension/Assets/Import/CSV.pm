@@ -61,7 +61,14 @@ sub run {
                     "Missing custom field $cfname for "._column($field2csv->{$fieldname}).", skipping");
                 delete $field2csv->{$fieldname};
             }
-        } elsif ($fieldname !~ /^(Name|Status|Description|Catalog|Created|LastUpdated|Owner)$/) {
+        } elsif ($fieldname =~ /^(Name|Status|Description|Catalog|Created|LastUpdated)$/) {
+            # no-op, these are fine
+        } elsif ( RT::Asset->HasRole($fieldname) ) {
+            if ( not RT::Asset->Role($fieldname)->{Single}) {
+                RT->Logger->warning( "Role name $fieldname must be single-value for "._column($field2csv->{$fieldname}).", skipping");
+                delete $field2csv->{$fieldname};
+            }
+        } else {
             RT->Logger->warning(
                 "Unknown asset field $fieldname for "._column($field2csv->{$fieldname}).", skipping");
             delete $field2csv->{$fieldname};
@@ -147,6 +154,17 @@ sub run {
                     );
                     unless ($ok) {
                         RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
+                    }
+                } elsif ($asset->HasRole($field)) {
+                    my $user = RT::User->new( $args{CurrentUser} );
+                    $user->Load( $value );
+                    $user = RT->Nobody unless $user->id;
+                    next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
+
+                    $changes++;
+                    my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId );
+                    unless ($ok) {
+                        RT->Logger->error("Failed to set $field to $value for row $i: $msg");
                     }
                 } elsif ($asset->$field ne $value) {
                     $changes++;
