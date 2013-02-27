@@ -171,7 +171,7 @@ sub run {
                     my $method = "Set" . $field;
                     my ($ok, $msg) = $asset->$method( $value );
                     unless ($ok) {
-                        RT->Logger->error("Failed to set $field to $value for row $1: $msg");
+                        RT->Logger->error("Failed to set $field to $value for row $i: $msg");
                     }
                 }
             }
