@@ -23,21 +23,17 @@ sub run {
     );
 
     my $unique = RT->Config->Get('AssetsImportUniqueCF');
-    unless ($unique) {
-        RT->Logger->error(
-            'Missing identified field, please set config AssetsImportUniqueCF'
+    my $unique_cf;
+    if ($unique) {
+        $unique_cf = RT::CustomField->new( $args{CurrentUser} );
+        $unique_cf->LoadByCols(
+            Name       => $unique,
+            LookupType => RT::Asset->CustomFieldLookupType,
         );
-        return (0,0,0);
-    }
-
-    my $unique_cf = RT::CustomField->new( $args{CurrentUser} );
-    $unique_cf->LoadByCols(
-        Name       => $unique,
-        LookupType => RT::Asset->CustomFieldLookupType,
-    );
-    unless ($unique_cf->id) {
-        RT->Logger->error( "Can't find custom field $unique for RT::Assets" );
-        return (0, 0, 0);
+        unless ($unique_cf->id) {
+            RT->Logger->error( "Can't find custom field $unique for RT::Assets" );
+            return (0, 0, 0);
+        }
     }
 
     my $field2csv = RT->Config->Get('AssetsImportFieldMapping');
@@ -61,7 +57,7 @@ sub run {
                     "Missing custom field $cfname for "._column($field2csv->{$fieldname}).", skipping");
                 delete $field2csv->{$fieldname};
             }
-        } elsif ($fieldname =~ /^(Name|Status|Description|Catalog|Created|LastUpdated)$/) {
+        } elsif ($fieldname =~ /^(id|Name|Status|Description|Catalog|Created|LastUpdated)$/) {
             # no-op, these are fine
         } elsif ( RT::Asset->HasRole($fieldname) ) {
             if ( not RT::Asset->Role($fieldname)->{Single}) {
@@ -75,7 +71,12 @@ sub run {
         }
     }
 
-    my @required_columns = ( $field2csv->{"CF.$unique"} );
+    if (not $unique and not $field2csv->{"id"}) {
+        RT->Logger->warning("No column set for 'id'; is AssetsImportUniqueCF intentionally unset?");
+        return (0, 0, 0);
+    }
+
+    my @required_columns = ( $field2csv->{$unique ? "CF.$unique" : "id"} );
 
     my @items = $class->parse_csv( $args{File} );
     unless (@items) {
@@ -104,16 +105,20 @@ sub run {
         }
 
         my $assets = RT::Assets->new( $args{CurrentUser} );
-        my $id_value = $class->get_value( $field2csv->{"CF.$unique"}, $item );
-        $assets->LimitCustomField(
-            CUSTOMFIELD => $unique_cf->id,
-            VALUE       => $id_value,
-        );
+        my $id_value = $class->get_value( $field2csv->{$unique ? "CF.$unique" : "id"}, $item );
+        if ($unique) {
+            $assets->LimitCustomField(
+                CUSTOMFIELD => $unique_cf->id,
+                VALUE       => $id_value,
+            );
+        } else {
+            $assets->Limit( FIELD => "id", VALUE => $id_value );
+        }
 
         if ( $assets->Count ) {
             if ( $assets->Count > 1 ) {
                 RT->Logger->warning(
-                    "Found multiple assets for $unique = $id_value"
+                    "Found multiple assets for @{[$unique||'id']} = $id_value"
                 );
                 $skipped++;
                 next;
@@ -213,6 +218,26 @@ sub run {
             }
         }
     }
+
+    unless ($unique) {
+        # Update Asset sequence; mysql and SQLite do this implicitly
+        my $dbtype = RT->Config->Get('DatabaseType');
+        my $dbh = RT->DatabaseHandle->dbh;
+        if ( $dbtype eq "Pg" ) {
+            $dbh->do("SELECT setval('rtxassets_id_seq', (SELECT MAX(id) FROM RTxAssets))");
+        } elsif ( $dbtype eq "Oracle" ) {
+            my ($max) = $dbh->selectrow_array("SELECT MAX(id) FROM RTxAssets");
+            my ($cur) = $dbh->selectrow_array("SELECT RTxAssets_seq.nextval FROM dual");
+            if ($max > $cur) {
+                $dbh->do("ALTER SEQUENCE RTxAssets_seq INCREMENT BY ". ($max - $cur));
+                # The next command _must_ be a select, and not a ->do,
+                # or Oracle doesn't actually fetch from the sequence.
+                $dbh->selectrow_array("SELECT RTxAssets_seq.nextval FROM dual");
+                $dbh->do("ALTER SEQUENCE RTxAssets_seq INCREMENT BY 1");
+            }
+        }
+    }
+
     return ( $created, $updated, $skipped );
 }
 
@@ -331,6 +356,23 @@ subroutine will be called with a hash reference of the parsed CSV row.
         'Location'               => 'building',
         'Weight'                 => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
     );
+
+=head2 Numeric identifiers
+
+If you are already using a numeric identifier to uniquely track your
+assets, and wish RT to take over handling of that identifier, you can
+choose to leave C<$AssetsImportUniqueCF> unset, and assign to C<id> in
+the C<%AssetsImportFieldMapping>:
+
+    Set( %AssetsImportFieldMapping,
+        # 'RT custom field name' => 'CSV field name'
+        'id'                     => 'serviceTag',
+        'Location'               => 'building',
+        'Serial #'               => 'serialNo',
+    );
+
+This requires that, after the import, RT becomes the generator of all
+asset ids.  Otherwise, asset id conflicts may occur.
 
 =head1 AUTHOR
 
