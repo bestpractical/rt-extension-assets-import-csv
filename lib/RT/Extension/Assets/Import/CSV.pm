@@ -318,6 +318,19 @@ This feature is particularly useful for setting the asset catalog, but
 may also be useful when importing assets from CSV sources you don't
 control (and don't want to modify each time).
 
+=head2 Computed values
+
+You may also compute values during import, by passing a subroutine
+reference as the value in the C<%AssetsImportFieldMapping>.  This
+subroutine will be called with a hash reference of the parsed CSV row.
+
+    Set( $AssetsImportUniqueCF, 'Service Tag' );
+    Set( %AssetsImportFieldMapping,
+        # 'RT custom field name' => 'CSV field name'
+        'Service Tag'            => 'serviceTag',
+        'Location'               => 'building',
+        'Weight'                 => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
+    );
 
 =head1 AUTHOR
 
