@@ -277,9 +277,18 @@ Add this line:
 
     Set(@Plugins, qw(RT::Extension::Assets::Import::CSV));
 
-or add C<RT::Extension::Assets::Import::CSV> to your existing C<@Plugins> line.
+or add C<RT::Extension::Assets::Import::CSV> to your existing
+C<@Plugins> line.
 
-Configure imported fields:
+See L</CONFIGURATION>, below, for the remainder of the required
+configuration.
+
+=back
+
+=head1 CONFIGURATION
+
+The following configuration would be used to import a three-column CSV
+of assets, where the column titled C<serviceTag> is unique:
 
     Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
@@ -289,10 +298,13 @@ Configure imported fields:
         'Serial #'               => 'serialNo',
     );
 
-If you want to set an RT column or custom field to a static value for all
-imported assets, proceed the "CSV field name" (right hand side of the mapping)
-with a slash, like so:
+=head2 Constant values
 
+If you want to set an RT column or custom field to a static value for
+all imported assets, proceed the "CSV field name" (right hand side of
+the mapping) with a slash, like so:
+
+    Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
         # 'RT custom field name' => 'CSV field name'
         'Service Tag'            => 'serviceTag',
@@ -301,12 +313,11 @@ with a slash, like so:
         'Catalog'                => \'Hardware',
     );
 
-Every imported asset will now be added to the Hardware catalog in RT.  This
-feature is particularly useful for setting the asset catalog, but may also be
-useful when importing assets from CSV sources you don't control (and don't want
-to modify each time).
+Every imported asset will now be added to the Hardware catalog in RT.
+This feature is particularly useful for setting the asset catalog, but
+may also be useful when importing assets from CSV sources you don't
+control (and don't want to modify each time).
 
-=back
 
 =head1 AUTHOR
 
