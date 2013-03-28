@@ -271,16 +271,6 @@ RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
 
 May need root permissions
 
-=item make initdb
-
-Only run this the first time you install this module.
-
-If you run this twice, you may end up with duplicate data
-in your database.
-
-If you are upgrading this module, check for upgrading instructions
-in case changes need to be made to your database.
-
 =item Edit your /opt/rt4/etc/RT_SiteConfig.pm
 
 Add this line:
