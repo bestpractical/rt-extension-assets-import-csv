@@ -9,7 +9,7 @@ use lib qw(/opt/rt4/local/lib /opt/rt4/lib);
 
 use Getopt::Long;
 my %opt;
-GetOptions( \%opt, 'help|h', 'update|u', 'debug|d', 'mdy', 'dmy' );
+GetOptions( \%opt, 'help|h', 'update|u', 'insert|i', 'debug|d', 'mdy', 'dmy' );
 my $file = shift @ARGV;
 
 if ( $opt{help} || !$file ) {
@@ -47,6 +47,7 @@ my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import::CSV->run(
     CurrentUser => $current_user,
     File        => $file,
     Update      => $opt{update},
+    Insert      => $opt{insert},
 );
 
 print <<"EOF";
@@ -80,6 +81,12 @@ L<RT::Extension::Assets::Import::CSV> for configuration.
 Without this option, existing assets (as determined by matching
 C<AssetsImportUniqueCF> values) are left untouched.  With this option
 provided, records will be updated based on their values in the CSV.
+
+=item C<--insert>
+
+By default, assets without a C<AssetsImportUniqueCF> values will produce
+a warning; with this flag, they will be inserted (generating their own
+id as needed) after all other operations.
 
 =item C<--mdy>, C<--dmy>
 

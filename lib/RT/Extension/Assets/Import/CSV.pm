@@ -19,6 +19,7 @@ sub run {
         CurrentUser => undef,
         File        => undef,
         Update      => undef,
+        Insert      => undef,
         @_,
     );
 
@@ -92,15 +93,21 @@ sub run {
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
     my ( $created, $updated, $skipped ) = (0) x 3;
     my $i = 1; # Because of header row
+    my @later;
     for my $item (@items) {
         $i++;
         next unless grep {/\S/} values %{$item};
 
         my @missing = grep {not $item->{$_}} @required_columns;
         if (@missing) {
-            RT->Logger->warning(
-                "Missing value for required column@{[@missing > 1 ? 's':'']} @missing at row $i, skipping");
-            $skipped++;
+            if ($args{Insert}) {
+                $item->{''} = $i;
+                push @later, $item;
+            } else {
+                RT->Logger->warning(
+                    "Missing value for required column@{[@missing > 1 ? 's':'']} @missing at row $i, skipping");
+                $skipped++;
+            }
             next;
         }
 
@@ -235,6 +242,32 @@ sub run {
                 $dbh->selectrow_array("SELECT RTxAssets_seq.nextval FROM dual");
                 $dbh->do("ALTER SEQUENCE RTxAssets_seq INCREMENT BY 1");
             }
+        }
+    }
+
+    for my $item (@later) {
+        my $row = delete $item->{''};
+        my $asset = RT::Asset->new( $args{CurrentUser} );
+        my %args;
+
+        for my $field (keys %$field2csv ) {
+            my $value = $class->get_value($field2csv->{$field}, $item);
+            next unless defined $value and length $value;
+            if ($field =~ /^CF\.(.*)/) {
+                my $cfname = $1;
+                $args{"CustomField-".$cfmap{$cfname}->id} = $value;
+            } else {
+                $args{$field} = $value;
+            }
+        }
+
+        my ($ok, $msg, $err) = $asset->Create( %args );
+        if ($ok) {
+            $created++;
+        } elsif ($err and @{$err}) {
+            RT->Logger->warning(join("\n", "Warnings during create for row $row: ", @{$err}) );
+        } else {
+            RT->Logger->error("Failed to create asset for row $row: $msg");
         }
     }
 
