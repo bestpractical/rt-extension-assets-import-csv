@@ -22,4 +22,4 @@ requires:
   Text::CSV_XS: 0
 resources:
   license: http://opensource.org/licenses/gpl-license.php
-version: 0.01
+version: 1.0
