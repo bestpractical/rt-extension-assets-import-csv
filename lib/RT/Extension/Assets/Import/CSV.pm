@@ -359,7 +359,7 @@ of assets, where the column titled C<serviceTag> is unique:
 =head2 Constant values
 
 If you want to set an RT column or custom field to a static value for
-all imported assets, proceed the "CSV field name" (right hand side of
+all imported assets, precede the "CSV field name" (right hand side of
 the mapping) with a slash, like so:
 
     Set( $AssetsImportUniqueCF, 'Service Tag' );
@@ -389,6 +389,9 @@ subroutine will be called with a hash reference of the parsed CSV row.
         'CF.Location'    => 'building',
         'CF.Weight'      => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
     );
+
+Using computed columns may cause false-positive "unused column"
+warnings; these can be ignored.
 
 =head2 Numeric identifiers
 
@@ -420,7 +423,7 @@ or L<bug-RT-Extension-Assets-Import-CSV@rt.cpan.org>.
 
 =head1 LICENSE AND COPYRIGHT
 
-This software is Copyright (c) 2012 by Best Practical Solutions
+This software is Copyright (c) 2014 by Best Practical Solutions
 
 This is free software, licensed under:
 
