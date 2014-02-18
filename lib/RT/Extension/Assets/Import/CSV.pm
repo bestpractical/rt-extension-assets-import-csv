@@ -350,10 +350,10 @@ of assets, where the column titled C<serviceTag> is unique:
 
     Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
-        # 'RT custom field name' => 'CSV field name'
-        'Service Tag'            => 'serviceTag',
-        'Location'               => 'building',
-        'Serial #'               => 'serialNo',
+        'Name'           => 'description',
+        'CF.Service Tag' => 'serviceTag',
+        'CF.Location'    => 'building',
+        'CF.Serial #'    => 'serialNo',
     );
 
 =head2 Constant values
@@ -364,11 +364,11 @@ the mapping) with a slash, like so:
 
     Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
-        # 'RT custom field name' => 'CSV field name'
-        'Service Tag'            => 'serviceTag',
-        'Location'               => 'building',
-        'Serial #'               => 'serialNo',
-        'Catalog'                => \'Hardware',
+        'Name'           => 'description',
+        'Catalog'        => \'Hardware',
+        'CF.Service Tag' => 'serviceTag',
+        'CF.Location'    => 'building',
+        'CF.Serial #'    => 'serialNo',
     );
 
 Every imported asset will now be added to the Hardware catalog in RT.
@@ -384,10 +384,10 @@ subroutine will be called with a hash reference of the parsed CSV row.
 
     Set( $AssetsImportUniqueCF, 'Service Tag' );
     Set( %AssetsImportFieldMapping,
-        # 'RT custom field name' => 'CSV field name'
-        'Service Tag'            => 'serviceTag',
-        'Location'               => 'building',
-        'Weight'                 => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
+        'Name'           => 'description',
+        'CF.Service Tag' => 'serviceTag',
+        'CF.Location'    => 'building',
+        'CF.Weight'      => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
     );
 
 =head2 Numeric identifiers
@@ -398,10 +398,10 @@ choose to leave C<$AssetsImportUniqueCF> unset, and assign to C<id> in
 the C<%AssetsImportFieldMapping>:
 
     Set( %AssetsImportFieldMapping,
-        # 'RT custom field name' => 'CSV field name'
-        'id'                     => 'serviceTag',
-        'Location'               => 'building',
-        'Serial #'               => 'serialNo',
+        'id'             => 'serviceTag',
+        'Name'           => 'description',
+        'CF.Service Tag' => 'serviceTag',
+        'CF.Serial #'    => 'serialNo',
     );
 
 This requires that, after the import, RT becomes the generator of all
