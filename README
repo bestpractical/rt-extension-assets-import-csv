@@ -24,24 +24,24 @@ CONFIGURATION
 
         Set( $AssetsImportUniqueCF, 'Service Tag' );
         Set( %AssetsImportFieldMapping,
-            # 'RT custom field name' => 'CSV field name'
-            'Service Tag'            => 'serviceTag',
-            'Location'               => 'building',
-            'Serial #'               => 'serialNo',
+            'Name'           => 'description',
+            'CF.Service Tag' => 'serviceTag',
+            'CF.Location'    => 'building',
+            'CF.Serial #'    => 'serialNo',
         );
 
   Constant values
     If you want to set an RT column or custom field to a static value for
-    all imported assets, proceed the "CSV field name" (right hand side of
+    all imported assets, precede the "CSV field name" (right hand side of
     the mapping) with a slash, like so:
 
         Set( $AssetsImportUniqueCF, 'Service Tag' );
         Set( %AssetsImportFieldMapping,
-            # 'RT custom field name' => 'CSV field name'
-            'Service Tag'            => 'serviceTag',
-            'Location'               => 'building',
-            'Serial #'               => 'serialNo',
-            'Catalog'                => \'Hardware',
+            'Name'           => 'description',
+            'Catalog'        => \'Hardware',
+            'CF.Service Tag' => 'serviceTag',
+            'CF.Location'    => 'building',
+            'CF.Serial #'    => 'serialNo',
         );
 
     Every imported asset will now be added to the Hardware catalog in RT.
@@ -56,11 +56,14 @@ CONFIGURATION
 
         Set( $AssetsImportUniqueCF, 'Service Tag' );
         Set( %AssetsImportFieldMapping,
-            # 'RT custom field name' => 'CSV field name'
-            'Service Tag'            => 'serviceTag',
-            'Location'               => 'building',
-            'Weight'                 => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
+            'Name'           => 'description',
+            'CF.Service Tag' => 'serviceTag',
+            'CF.Location'    => 'building',
+            'CF.Weight'      => sub { $_[0]->{"Weight (kg)"} || "(unknown)" },
         );
+
+    Using computed columns may cause false-positive "unused column"
+    warnings; these can be ignored.
 
   Numeric identifiers
     If you are already using a numeric identifier to uniquely track your
@@ -69,10 +72,10 @@ CONFIGURATION
     %AssetsImportFieldMapping:
 
         Set( %AssetsImportFieldMapping,
-            # 'RT custom field name' => 'CSV field name'
-            'id'                     => 'serviceTag',
-            'Location'               => 'building',
-            'Serial #'               => 'serialNo',
+            'id'             => 'serviceTag',
+            'Name'           => 'description',
+            'CF.Service Tag' => 'serviceTag',
+            'CF.Serial #'    => 'serialNo',
         );
 
     This requires that, after the import, RT becomes the generator of all
@@ -87,7 +90,7 @@ BUGS
     port-CSV> or bug-RT-Extension-Assets-Import-CSV@rt.cpan.org.
 
 LICENSE AND COPYRIGHT
-    This software is Copyright (c) 2012 by Best Practical Solutions
+    This software is Copyright (c) 2014 by Best Practical Solutions
 
     This is free software, licensed under:
 
