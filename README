@@ -10,17 +10,16 @@ INSTALLATION
     Edit your /opt/rt4/etc/RT_SiteConfig.pm
         Add this line:
 
-            Set(@Plugins, qw(RT::Extension::Assets::Import::CSV));
-
-        or add "RT::Extension::Assets::Import::CSV" to your existing
-        @Plugins line.
+            Plugin('RT::Extension::Assets::Import::CSV');
 
         See "CONFIGURATION", below, for the remainder of the required
         configuration.
 
+    Restart your webserver
+
 CONFIGURATION
     The following configuration would be used to import a three-column CSV
-    of assets, where the column titled "serviceTag" is unique:
+    of assets, where the column titled serviceTag is unique:
 
         Set( $AssetsImportUniqueCF, 'Service Tag' );
         Set( %AssetsImportFieldMapping,
@@ -68,7 +67,7 @@ CONFIGURATION
   Numeric identifiers
     If you are already using a numeric identifier to uniquely track your
     assets, and wish RT to take over handling of that identifier, you can
-    choose to leave $AssetsImportUniqueCF unset, and assign to "id" in the
+    choose to leave $AssetsImportUniqueCF unset, and assign to id in the
     %AssetsImportFieldMapping:
 
         Set( %AssetsImportFieldMapping,
@@ -82,15 +81,19 @@ CONFIGURATION
     asset ids. Otherwise, asset id conflicts may occur.
 
 AUTHOR
-    sunnavy <sunnavy@bestpractical.com>
+    Best Practical Solutions, LLC <modules@bestpractical.com>
 
 BUGS
-    All bugs should be reported via
-    <http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Im
-    port-CSV> or bug-RT-Extension-Assets-Import-CSV@rt.cpan.org.
+    All bugs should be reported via email to
 
-LICENSE AND COPYRIGHT
-    This software is Copyright (c) 2014 by Best Practical Solutions
+        L<bug-RT-Extension-Assets-Import-CSV@rt.cpan.org|mailto:bug-RT-Extension-Assets-Import-CSV@rt.cpan.org>
+
+    or via the web at
+
+        L<rt.cpan.org|http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Import-CSV>.
+
+COPYRIGHT
+    This extension is Copyright (C) 2014 Best Practical Solutions, LLC.
 
     This is free software, licensed under:
 

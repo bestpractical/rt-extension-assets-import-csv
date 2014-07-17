@@ -1,10 +1,6 @@
 use inc::Module::Install;
 
-
 RTx 'RT-Extension-Assets-Import-CSV';
-all_from 'lib/RT/Extension/Assets/Import/CSV.pm';
-readme_from 'lib/RT/Extension/Assets/Import/CSV.pm';
-license  'gplv2';
 
 use Config;
 my $perl_path = $Config{perlpath};
@@ -19,7 +15,8 @@ substitute( {
     'bin/rt-assets-import-csv',
 );
 
-requires 'RT::Extension::Assets';
+requires_rt '4.2.1';
+requires_rt_plugin 'RT::Extension::Assets';
 requires 'Text::CSV_XS';
 
 sign;

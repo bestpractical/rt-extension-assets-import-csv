@@ -321,25 +321,24 @@ RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
 
 =over
 
-=item perl Makefile.PL
+=item C<perl Makefile.PL>
 
-=item make
+=item C<make>
 
-=item make install
+=item C<make install>
 
 May need root permissions
 
-=item Edit your /opt/rt4/etc/RT_SiteConfig.pm
+=item Edit your F</opt/rt4/etc/RT_SiteConfig.pm>
 
 Add this line:
 
-    Set(@Plugins, qw(RT::Extension::Assets::Import::CSV));
-
-or add C<RT::Extension::Assets::Import::CSV> to your existing
-C<@Plugins> line.
+    Plugin('RT::Extension::Assets::Import::CSV');
 
 See L</CONFIGURATION>, below, for the remainder of the required
 configuration.
+
+=item Restart your webserver
 
 =back
 
@@ -412,18 +411,21 @@ asset ids.  Otherwise, asset id conflicts may occur.
 
 =head1 AUTHOR
 
-sunnavy <sunnavy@bestpractical.com>
+Best Practical Solutions, LLC E<lt>modules@bestpractical.comE<gt>
 
 =head1 BUGS
 
-All bugs should be reported via
-L<http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Import-CSV>
-or L<bug-RT-Extension-Assets-Import-CSV@rt.cpan.org>.
+All bugs should be reported via email to
 
+    L<bug-RT-Extension-Assets-Import-CSV@rt.cpan.org|mailto:bug-RT-Extension-Assets-Import-CSV@rt.cpan.org>
 
-=head1 LICENSE AND COPYRIGHT
+or via the web at
 
-This software is Copyright (c) 2014 by Best Practical Solutions
+    L<rt.cpan.org|http://rt.cpan.org/Public/Dist/Display.html?Name=RT-Extension-Assets-Import-CSV>.
+
+=head1 COPYRIGHT
+
+This extension is Copyright (C) 2014 Best Practical Solutions, LLC.
 
 This is free software, licensed under:
 
