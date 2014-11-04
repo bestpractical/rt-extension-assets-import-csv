@@ -61,10 +61,7 @@ sub run {
         } elsif ($fieldname =~ /^(id|Name|Status|Description|Catalog|Created|LastUpdated)$/) {
             # no-op, these are fine
         } elsif ( RT::Asset->HasRole($fieldname) ) {
-            if ( not RT::Asset->Role($fieldname)->{Single}) {
-                RT->Logger->warning( "Role name $fieldname must be single-value for "._column($field2csv->{$fieldname}).", skipping");
-                delete $field2csv->{$fieldname};
-            }
+            # no-op, roles are fine
         } else {
             RT->Logger->warning(
                 "Unknown asset field $fieldname for "._column($field2csv->{$fieldname}).", skipping");
