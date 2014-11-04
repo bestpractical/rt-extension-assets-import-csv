@@ -1,3 +1,7 @@
+1.4 2014-11-03
+ - Fix Role import (Owner)
+ - Allow importing of non-single roles (Held By and Contacts)
+
 1.3 2014-07-18
  - Fix MANIFEST
 
