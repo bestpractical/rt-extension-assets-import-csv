@@ -171,7 +171,7 @@ sub run {
                     next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
 
                     $changes++;
-                    my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId );
+                    my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
                     unless ($ok) {
                         RT->Logger->error("Failed to set $field to $value for row $i: $msg");
                     }
