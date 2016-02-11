@@ -1,3 +1,6 @@
+2.0 2016-02-11
+ - Upgrade to 4.4 which has cored Assets
+
 1.4 2014-11-03
  - Fix Role import (Owner)
  - Allow importing of non-single roles (Held By and Contacts)

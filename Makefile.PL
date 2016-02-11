@@ -15,8 +15,7 @@ substitute( {
     'bin/rt-assets-import-csv',
 );
 
-requires_rt '4.2.1';
-requires_rt_plugin 'RT::Extension::Assets';
+requires_rt '4.4.0';
 requires 'Text::CSV_XS';
 
 sign;

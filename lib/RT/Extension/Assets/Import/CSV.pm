@@ -4,7 +4,7 @@ use warnings;
 package RT::Extension::Assets::Import::CSV;
 use Text::CSV_XS;
 
-our $VERSION = '1.4';
+our $VERSION = '2.0';
 
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
@@ -314,6 +314,14 @@ sub parse_csv {
 
 RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
 
+=head1 PREREQUISITES
+
+This version of RT::Extension::Assets::Import::CSV requires RT 4.4, as that
+version of RT has Assets built in.
+
+If you're running RT 4.2 with the Assets extension, you should seek an older
+version of this extension; specifically, version 1.4.
+
 =head1 INSTALLATION
 
 =over
@@ -426,7 +434,7 @@ or via the web at
 
 =head1 COPYRIGHT
 
-This extension is Copyright (C) 2014 Best Practical Solutions, LLC.
+This extension is Copyright (C) 2014-2016 Best Practical Solutions, LLC.
 
 This is free software, licensed under:
 
