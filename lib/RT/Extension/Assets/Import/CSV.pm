@@ -4,7 +4,7 @@ use warnings;
 package RT::Extension::Assets::Import::CSV;
 use Text::CSV_XS;
 
-our $VERSION = '2.0';
+our $VERSION = '2.1';
 
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
