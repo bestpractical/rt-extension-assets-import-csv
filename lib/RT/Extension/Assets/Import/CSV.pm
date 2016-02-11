@@ -337,6 +337,10 @@ configuration.
 
 =item Restart your webserver
 
+=item Run C<bin/rt-assets-import-csv>
+
+See C<bin/rt-assets-import-csv --help> for more information.
+
 =back
 
 =head1 CONFIGURATION
