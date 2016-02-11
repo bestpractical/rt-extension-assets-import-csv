@@ -24,9 +24,8 @@ if ($opt{mdy} and $opt{dmy}) {
 }
 
 use RT;
-use RT::Interface::CLI qw(CleanEnv GetCurrentUser);
+use RT::Interface::CLI qw(GetCurrentUser);
 
-CleanEnv();
 if ($opt{config}) {
     die "Can't find configuration file $opt{config}" unless -f $opt{config};
     no warnings 'redefine';
