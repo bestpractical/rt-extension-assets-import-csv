@@ -18,5 +18,4 @@ substitute( {
 requires_rt '4.4.0';
 requires 'Text::CSV_XS';
 
-sign;
 WriteAll;

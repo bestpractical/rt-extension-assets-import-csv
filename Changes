@@ -1,3 +1,6 @@
+2.2 2017-03-22
+ - Fix table and sequence names for Pg and Oracle
+
 2.1 2016-02-11
  - Packaging fixes
 
