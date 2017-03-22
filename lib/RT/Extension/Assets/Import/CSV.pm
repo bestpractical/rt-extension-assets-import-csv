@@ -228,16 +228,16 @@ sub run {
         my $dbtype = RT->Config->Get('DatabaseType');
         my $dbh = RT->DatabaseHandle->dbh;
         if ( $dbtype eq "Pg" ) {
-            $dbh->do("SELECT setval('rtxassets_id_seq', (SELECT MAX(id) FROM RTxAssets))");
+            $dbh->do("SELECT setval('assets_id_seq', (SELECT MAX(id) FROM Assets))");
         } elsif ( $dbtype eq "Oracle" ) {
-            my ($max) = $dbh->selectrow_array("SELECT MAX(id) FROM RTxAssets");
-            my ($cur) = $dbh->selectrow_array("SELECT RTxAssets_seq.nextval FROM dual");
+            my ($max) = $dbh->selectrow_array("SELECT MAX(id) FROM Assets");
+            my ($cur) = $dbh->selectrow_array("SELECT Assets_seq.nextval FROM dual");
             if ($max > $cur) {
-                $dbh->do("ALTER SEQUENCE RTxAssets_seq INCREMENT BY ". ($max - $cur));
+                $dbh->do("ALTER SEQUENCE Assets_seq INCREMENT BY ". ($max - $cur));
                 # The next command _must_ be a select, and not a ->do,
                 # or Oracle doesn't actually fetch from the sequence.
-                $dbh->selectrow_array("SELECT RTxAssets_seq.nextval FROM dual");
-                $dbh->do("ALTER SEQUENCE RTxAssets_seq INCREMENT BY 1");
+                $dbh->selectrow_array("SELECT Assets_seq.nextval FROM dual");
+                $dbh->do("ALTER SEQUENCE Assets_seq INCREMENT BY 1");
             }
         }
     }
