@@ -9,7 +9,7 @@ use lib qw(/opt/rt5/local/lib /opt/rt5/lib);
 
 use Getopt::Long;
 my %opt;
-GetOptions( \%opt, 'help|h', 'update|u', 'insert|i', 'debug|d', 'mdy', 'dmy', 'config|c=s' );
+GetOptions( \%opt, 'help|h', 'update|u', 'insert|i', 'debug|d', 'mdy', 'dmy', 'config|c=s', 'separator|s=s' );
 my $file = shift @ARGV;
 
 if ( $opt{help} || !$file ) {
@@ -54,6 +54,7 @@ my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import::CSV->run(
     File        => $file,
     Update      => $opt{update},
     Insert      => $opt{insert},
+    Separator   => $opt{separator},
 );
 
 print <<"EOF";
