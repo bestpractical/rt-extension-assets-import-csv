@@ -89,6 +89,17 @@ CONFIGURATION
     This requires that, after the import, RT becomes the generator of all
     asset ids. Otherwise, asset id conflicts may occur.
 
+  $CSVHeaderOptions
+    Set CSV parsing header options
+    <https://metacpan.org/pod/Text::CSV_XS#header> by setting the
+    $CSVHeaderOptions config value. The default value is shown below:
+
+        Set( $CSVOptions, {
+            detect_bom         => 1,
+            munge_column_names => "none",
+            ...
+        });
+
 AUTHOR
     Best Practical Solutions, LLC <modules@bestpractical.com>
 

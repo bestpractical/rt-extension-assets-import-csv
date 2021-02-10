@@ -291,14 +291,18 @@ sub parse_csv {
     my $csv = Text::CSV_XS->new( { binary => 1 } );
 
     open my $fh, '<', $file or die "failed to read $file: $!";
-    my $header = $csv->getline($fh);
+    my @header = $csv->header($fh, {
+      munge_column_names => 'none',
+      detect_bom         => 1,
+      %{ RT->Config->Get('CSVHeaderOptions') || {} },
+    });
 
     my @items;
     while ( my $row = $csv->getline($fh) ) {
         my $item;
-        for ( my $i = 0 ; $i < @$header ; $i++ ) {
-            if ( $header->[$i] ) {
-                $item->{ $header->[$i] } = $row->[$i];
+        for ( my $i = 0 ; $i < @header ; $i++ ) {
+            if ( $header[$i] ) {
+                $item->{ $header[$i] } = $row->[$i];
             }
         }
 
@@ -417,6 +421,18 @@ the C<%AssetsImportFieldMapping>:
 
 This requires that, after the import, RT becomes the generator of all
 asset ids.  Otherwise, asset id conflicts may occur.
+
+=head2 C<$CSVHeaderOptions>
+
+Set CSV parsing L<header options|https://metacpan.org/pod/Text::CSV_XS#header> by setting the
+C<$CSVHeaderOptions> config value. The default value is shown below:
+
+    Set( $CSVOptions, {
+        detect_bom         => 1,
+        munge_column_names => "none",
+        ...
+    });
+
 
 =head1 AUTHOR
 
