@@ -6,6 +6,17 @@ use Text::CSV_XS;
 
 our $VERSION = '2.3';
 
+my %link_types = (
+    Members      => { Type => 'MemberOf',  Mode => 'Base'   },
+    Children     => { Type => 'MemberOf',  Mode => 'Base'   },
+    ReferredToBy => { Type => 'RefersTo',  Mode => 'Base'   },
+    DependedOnBy => { Type => 'DependsOn', Mode => 'Base'   },
+    MemberOf     => { Type => 'MemberOf',  Mode => 'Target' },
+    Parents      => { Type => 'MemberOf',  Mode => 'Target' },
+    RefersTo     => { Type => 'RefersTo',  Mode => 'Target' },
+    DependsOn    => { Type => 'DependsOn', Mode => 'Target' },
+);
+
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
                       "code reference" :
@@ -62,6 +73,8 @@ sub run {
             # no-op, these are fine
         } elsif ( RT::Asset->HasRole($fieldname) ) {
             # no-op, roles are fine
+        } elsif ( defined $link_types{$fieldname} ) {
+            # no-op, links are fine
         } else {
             RT->Logger->warning(
                 "Unknown asset field $fieldname for "._column($field2csv->{$fieldname}).", skipping");
@@ -182,7 +195,25 @@ sub run {
                         $value = $catalog->id;
                     }
 
-                    if ($asset->$field ne $value) {
+                    if (defined $link_types{$field}) {
+                        $changes++;
+                        my ($type, $mode);
+                        if ($field eq 'Parents') {
+                            $type = 'MemberOf';
+                            $mode = 'Target';
+                        }
+
+                        # Allow comma separated list of things to link to.
+                        for my $link (split(/,\s*/, $value)) {
+                            my ($ok, $msg) = $asset->AddLink(
+                                Type                      => $link_types{$field}{Type},
+                                $link_types{$field}{Mode} => $value,
+                            );
+                            unless ($ok) {
+                                RT->Logger->error("Failed to add link type $field to $value for row $i: $msg");
+                            }
+                        }
+                    } elsif ($asset->$field ne $value) {
                         $changes++;
                         my $method = "Set" . $field;
                         my ($ok, $msg) = $asset->$method( $value );
@@ -417,6 +448,20 @@ the C<%AssetsImportFieldMapping>:
 
 This requires that, after the import, RT becomes the generator of all
 asset ids.  Otherwise, asset id conflicts may occur.
+
+=head2 Links
+
+You can create links to tickets or other assets by using the relationship
+name, then you can use a comma separated listed of tickets or assets (assets
+need a prefix of "assets:". For example:
+
+    Set( %AssetsImportFieldMapping,
+        'id'      => 'serviceTag',
+        'Name'    => 'description',
+        'Parents' => 'parent',
+    );
+
+The "parent" columun could then have entries like "assets:123" or "assets:42".
 
 =head1 AUTHOR
 
