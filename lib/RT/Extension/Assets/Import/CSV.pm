@@ -6,15 +6,16 @@ use Text::CSV_XS;
 
 our $VERSION = '2.3';
 
+# Can we just load or construct this from RT::Link?
 my %link_types = (
-    Members      => { Type => 'MemberOf',  Mode => 'Base'   },
-    Children     => { Type => 'MemberOf',  Mode => 'Base'   },
-    ReferredToBy => { Type => 'RefersTo',  Mode => 'Base'   },
-    DependedOnBy => { Type => 'DependsOn', Mode => 'Base'   },
-    MemberOf     => { Type => 'MemberOf',  Mode => 'Target' },
-    Parents      => { Type => 'MemberOf',  Mode => 'Target' },
-    RefersTo     => { Type => 'RefersTo',  Mode => 'Target' },
-    DependsOn    => { Type => 'DependsOn', Mode => 'Target' },
+    Members      => { Type => 'MemberOf'  },
+    Children     => { Type => 'MemberOf'  },
+    ReferredToBy => { Type => 'RefersTo'  },
+    DependedOnBy => { Type => 'DependsOn' },
+    MemberOf     => { Type => 'MemberOf'  },
+    Parents      => { Type => 'MemberOf'  },
+    RefersTo     => { Type => 'RefersTo'  },
+    DependsOn    => { Type => 'DependsOn' },
 );
 
 sub _column {
@@ -196,25 +197,92 @@ sub run {
                     }
 
                     if (defined $link_types{$field}) {
-                        $changes++;
-                        my ($type, $mode);
-                        if ($field eq 'Parents') {
-                            $type = 'MemberOf';
-                            $mode = 'Target';
-                        }
+                        my $Type = $link_types{$field}{Type};
+                        my $mode = $RT::Link::TYPEMAP{$Type}->{Mode};
+                        my $ModeObj = "${mode}Obj";
 
                         # A common issue I encounter is spreadsheets
                         # capitalising asset to be Asset. Fix that.
                         $value =~ s/Asset/asset/g;
 
+                        # Find all the existing links so we can delete links
+                        # not present in the CSV. Assume all should be
+                        # removed, unless we find them. Only consider links
+                        # which are Tickets, Assets or links to outside RT.
+                        my %existing_links;
+                        my $links = $asset->$Type;
+                        while (my $link = $links->Next) {
+                            my $ToObj = $link->$ModeObj;
+                            next unless ! $ToObj
+                                || $ToObj->isa('RT::Ticket')
+                                || $ToObj->isa('RT::Asset');
+		            $existing_links{$link->id} =
+                                [ 0, $Type, $link->Target, $link ];
+			}
+
                         # Allow comma separated list of things to link to.
-                        for my $link (split(/,\s*/, $value)) {
+                        AddLink: for my $target (split(/,\s*/, $value)) {
+                            # Check the existing links
+                            while (my $link = $links->Next) {
+                                my $ToObj = $link->$ModeObj;
+
+                                if (! $ToObj) {
+                                    # A link outside of RT
+                                    if ($link->$mode eq $target) {
+                                        $existing_links{$link->id} = [ 1 ];
+                                        next AddLink;
+                                    }
+				} else {
+
+                                    # We only allow linking to Tickets and
+                                    # Assets, is that right?
+                                    next unless $ToObj->isa('RT::Ticket')
+                                        || $ToObj->isa('RT::Asset');
+
+                                    if ($ToObj->isa('RT::Asset')
+                                            && $target =~ /^asset:(\d+)$/) {
+                                        if ($ToObj->id == $1) {
+                                            $existing_links{$link->id} = [ 1 ];
+                                            next AddLink;
+                                        }
+                                    } elsif ($ToObj->isa('RT::Ticket') && $target =~ /^\d+$/) {
+                                        if ($ToObj->id == $value) {
+		                            $existing_links{$link->id} = [ 1 ];
+                                            next AddLink;
+                                        }
+                                    }
+                                }
+                            }
+
                             my ($ok, $msg) = $asset->AddLink(
-                                Type                      => $link_types{$field}{Type},
-                                $link_types{$field}{Mode} => $link,
+                                Type  => $Type,
+                                $mode => $target,
                             );
-                            unless ($ok) {
-                                RT->Logger->error("Failed to add link type $field to $link for row $i: $msg");
+                            if ($ok) {
+			        if ($msg ne 'Link already exists') {
+                                    RT->Logger->notice("Added $Type link for field $field to $target for row $i: $msg");                    
+                                    $changes++;
+                                }
+                            } else {
+                                RT->Logger->error("Failed to add $Type link $field to $target for row $i: $msg");
+                            }
+                        }
+
+                        # Delete any links to URLs, Tickets or Assets not
+                        # present in the CSV.
+                        for my $link (values %existing_links) {
+                            if (@{ $link }[0] == 0) {
+                                my $Type    = @{ $link }[1];
+                                my $Target = @{ $link }[2];
+                                my ($ok, $msg) = $asset->DeleteLink(Type => $Type, Target => $Target);
+                                print ("deleting $Type to $Target for row $i (asset " . $asset->id . "): $msg\n");
+				if ($ok) {
+                                    if ($msg =~ /no longer member of/) {
+                                        $changes++;
+                                    }
+                                } else {
+                                    RT->Logger->error("Failed to delete $Type from $Target for row $i (asset " . $asset->id . "): $msg");
+                                }
                             }
                         }
                     } elsif ($asset->$field ne $value) {
