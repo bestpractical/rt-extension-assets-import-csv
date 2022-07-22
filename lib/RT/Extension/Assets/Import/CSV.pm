@@ -203,6 +203,10 @@ sub run {
                             $mode = 'Target';
                         }
 
+                        # A common issue I encounter is spreadsheets
+                        # capitalising asset to be Asset. Fix that.
+                        $value =~ s/Asset/asset/g;
+
                         # Allow comma separated list of things to link to.
                         for my $link (split(/,\s*/, $value)) {
                             my ($ok, $msg) = $asset->AddLink(
