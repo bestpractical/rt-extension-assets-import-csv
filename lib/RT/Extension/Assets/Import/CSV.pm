@@ -207,10 +207,10 @@ sub run {
                         for my $link (split(/,\s*/, $value)) {
                             my ($ok, $msg) = $asset->AddLink(
                                 Type                      => $link_types{$field}{Type},
-                                $link_types{$field}{Mode} => $value,
+                                $link_types{$field}{Mode} => $link,
                             );
                             unless ($ok) {
-                                RT->Logger->error("Failed to add link type $field to $value for row $i: $msg");
+                                RT->Logger->error("Failed to add link type $field to $link for row $i: $msg");
                             }
                         }
                     } elsif ($asset->$field ne $value) {
