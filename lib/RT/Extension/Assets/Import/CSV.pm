@@ -344,14 +344,13 @@ sub process_links_field {
     my $mode = $RT::Link::TYPEMAP{$Type}->{Mode};
     my $ModeObj = "${mode}Obj";
 
-    # A common issue I encounter is spreadsheets
-    # capitalising asset to be Asset. Fix that.
+    # A common issue I encounter is spreadsheets capitalising asset to be
+    # Asset. Fix that.
     $value =~ s/Asset/asset/g;
 
-    # Find all the existing links so we can delete links
-    # not present in the CSV. Assume all should be
-    # removed, unless we find them. Only consider links
-    # which are Tickets, Assets or links to outside RT.
+    # Find all the existing links so we can delete links not present in the
+    # CSV. Assume all should be removed, unless we find them. Only consider
+    # links which are Tickets, Assets or links to outside RT.
     my %existing_links;
     my $links = $asset->$Type;
     while (my $link = $links->Next) {
@@ -533,9 +532,9 @@ asset ids.  Otherwise, asset id conflicts may occur.
 
 =head2 Links
 
-You can create links to tickets or other assets by using the relationship
+You can create links to tickets, other assets or URLs by using the relationship
 name, then you can use a comma separated listed of tickets or assets (assets
-need a prefix of "assets:". For example:
+need a prefix of "assets:"). For example:
 
     Set( %AssetsImportFieldMapping,
         'id'      => 'serviceTag',
@@ -544,6 +543,9 @@ need a prefix of "assets:". For example:
     );
 
 The "parent" column could then have entries like "assets:123" or "assets:42".
+
+If an asset has links to tickets, assets or URLs which aren't mentioned in
+the field in the CSV file, then those links will be removed.
 
 =head1 AUTHOR
 
