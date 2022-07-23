@@ -405,9 +405,9 @@ sub process_roles_field {
             # Is it safe to assume the Nobody account always starts with
             # Nobody?
             if ($name =~ /^Nobody/) {
-                $user = RT->Nobody;
+                $principal = RT->Nobody;
             } else {
-                $user->Load( $name );
+                $principal->Load( $name );
             }
         }
 
