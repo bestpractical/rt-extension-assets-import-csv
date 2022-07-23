@@ -58,7 +58,7 @@ sub run {
                     "Missing custom field $cfname for "._column($field2csv->{$fieldname}).", skipping");
                 delete $field2csv->{$fieldname};
             }
-        } elsif ($fieldname =~ /^(id|Name|Status|Description|Catalog|Created|LastUpdated)$/) {
+        } elsif ($fieldname =~ /^(id|Name|Status|Description|Catalog|Catalogue|Created|LastUpdated)$/) {
             # no-op, these are fine
         } elsif ( RT::Asset->HasRole($fieldname) ) {
             # no-op, roles are fine
@@ -169,15 +169,17 @@ sub run {
                     # Manage roles linkg to principals.
                     process_roles_field(\%args, $asset, $i, $field, $value, \$changes);
                 } else {
-                    if ($field eq "Catalog") {
+                    my $method = $field;
+                    if ($field =~ "Catalog(ue)?") {
                         my $catalog = RT::Catalog->new( $args{CurrentUser} );
                         $catalog->Load( $value );
                         $value = $catalog->id;
+                        $method = 'Catalog';
                     }
 
-                    if ($asset->$field ne $value) {
+                    if ($asset->$method ne $value) {
                         $changes++;
-                        my $method = "Set" . $field;
+                        $method = "Set" . $method;
                         my ($ok, $msg) = $asset->$method( $value );
                         unless ($ok) {
                             RT->Logger->error("Failed to set $field to $value for row $i: $msg");
