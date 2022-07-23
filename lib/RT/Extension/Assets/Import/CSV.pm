@@ -7,15 +7,20 @@ use Text::CSV_XS;
 our $VERSION = '2.3';
 
 # Can we just load or construct this from RT::Link?
+# Keep this as a subset as I think some of the other link types shouldn't
+# be imported.
 my %link_types = (
+    Member       => { Type => 'MemberOf'  },
     Members      => { Type => 'MemberOf'  },
-    Children     => { Type => 'MemberOf'  },
-    ReferredToBy => { Type => 'RefersTo'  },
-    DependedOnBy => { Type => 'DependsOn' },
     MemberOf     => { Type => 'MemberOf'  },
+    Parent       => { Type => 'MemberOf'  },
     Parents      => { Type => 'MemberOf'  },
+    Child        => { Type => 'MemberOf'  },
+    Children     => { Type => 'MemberOf'  },
     RefersTo     => { Type => 'RefersTo'  },
+    ReferredToBy => { Type => 'RefersTo'  },
     DependsOn    => { Type => 'DependsOn' },
+    DependedOnBy => { Type => 'DependsOn' },
 );
 
 sub _column {
