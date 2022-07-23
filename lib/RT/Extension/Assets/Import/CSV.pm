@@ -312,35 +312,145 @@ sub process_roles_field {
     my $changes = shift;
 
     my $user = RT::User->new( $args->{CurrentUser} );
+    my $group;
 
-    # Strip out anything in brackets as that is the fullname of the user. It
-    # can also have commas in it, so we'll just drop it.
+    # Ooof, RT::Asset uses "Owner" and "HeldBy" for those, but for "Contact"
+    # it uses "Contacts". We need to handle that.
+    my $method = ($field eq 'Contact' ? 'Contacts' : $field);
+
+    # Find all the existing principals so we can delete any not present in
+    # the CSV. Assume all should be removed, unless we find them. We split
+    # out users and groups to allow us to use nicer log lines later on.
+    my %existing_principals;
+
+    if ($field eq 'Owner' && RT->Config->Get('AssetMultipleOwner') == 0) {
+       # By default Owner can only be a single user or group. And
+       # $asset->Owner will return that user or group.
+       $existing_principals{user}{$asset->Owner->id} = 0;
+
+    } else {
+        my $principals;
+
+        # Find users.
+        if ($field eq 'Owner') {
+            # The Owner method in RT::Asset only ever returns the first
+            # principal. We need to use RoleGroup to get them all.
+            $principals = $asset->RoleGroup('Owner')->MembersObj;
+        } else {
+            $principals = $asset->$method->MembersObj;
+        }
+
+        # We're dealing with users here.
+        $principals->LimitToUsers;
+        while (my $principal = $principals->Next) {
+            $existing_principals{user}{$principal->MemberId} = 0;
+        }
+
+        # Find groups. We need to repeat creating the principals
+        # object because LimitToGroups doesn't undo the previous
+        # LimitToUsers call.
+        if ($field eq 'Owner') {
+            # The Owner method in RT::Asset only ever returns the first
+            # principal. We need to use RoleGroup to get them all.
+            $principals = $asset->RoleGroup('Owner')->MembersObj;
+        } else {
+            $principals = $asset->$method->MembersObj;
+        }
+
+        # We're dealing with groups here.
+        $principals->LimitToGroups;
+
+        while (my $principal = $principals->Next) {
+            $existing_principals{group}{$principal->MemberId} = 0;
+        }
+    }
+
+    # Strip out anything in brackets as that is the fullname of the user.
     $value =~ s/\s+\(.*?\)//g;
 
     # Usernames can have commas in them (huh? yes, try it), so we need to
     # split on ", ". Turns out they can also have spaces. People that put
     # ", " in a username get to keep the pieces.
-    for my $username (split(/,\s/, $value)) {
-        $username =~ s/\+$//;
+    my $count = 0;
+    for my $name (split(/,\s/, $value)) {
+        $name =~ s/\+$//;
+        $count++;
 
-        # Is it safe to assume the Nobody account always starts with Nobody?
-        if ($username =~ /^Nobody/) {
-            $user = RT->Nobody;
-        } else {
-            $user->Load( $username );
+        if ($field eq 'Owner' && RT->Config->Get('AssetMultipleOwner') == 0
+            && $count > 1) {
+            RT->Logger->error("You're trying to set more than one Owner for row $i, but AssetMultipleOwner is off, skipping extra(s)");
         }
 
-        if (! $user->id ) {
-            RT->Logger->error("Unable to find user $username in $field for row $i, skipping");
+        # I expect that users will be more common then groups, make 'em the
+        # default.
+        my $type      = 'user';
+        my $principal = $user;
+
+        if ($name =~ /^Group: (.*)$/) {
+            # Add a group.
+            #
+            # Lazy create a group for lookups.
+            $group ||= RT::Group->new( $args->{CurrentUser} );
+
+            $name = $1;  # Keep this for log lines.
+            $group->LoadUserDefinedGroup($name);
+
+            $type      = 'group';
+            $principal = $group;
+        } else {
+            # Add a user.
+
+            # Is it safe to assume the Nobody account always starts with
+            # Nobody?
+            if ($name =~ /^Nobody/) {
+                $user = RT->Nobody;
+            } else {
+                $user->Load( $name );
+            }
+        }
+
+        if (! $principal->id ) {
+            RT->Logger->error("Unable to find $type $name in $field for row $i, skipping");
             next;
         }
-        next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
 
-        my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
+        my $id = $principal->PrincipalId;
+
+        # We don't need to remove this principal from the role.
+        delete $existing_principals{$type}{$id};
+
+        # Already a member, our job with this principal is done.
+        next if $asset->RoleGroup($field)->HasMember( $id );
+
+        my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $id, Type => $field );
         if ($ok) {
+            RT->Logger->info("Added $type $id to $field for row $i (asset " . $asset->id . ")");
             $$changes++;
+
+            if ($field eq 'Owner' && RT->Config->Get('AssetMultipleOwner') == 0) {
+                # If this is an Owner, and AssetMultipleOwner is off, then
+                # setting a new Owner will remove the old Owner. We'll
+                # forget about removing any surplus users or groups as there
+                # is nothing to remove, and we'd get bogus error messages
+                # in the clean up stage..
+                delete $existing_principals{$type};
+            }
         } else {
-            RT->Logger->error("Failed to add $username in $field for row $i: $msg");
+            RT->Logger->error("Failed to add $type " . $principal->Name . " in $field for row $i: $msg");
+        }
+    }
+
+    # Delete any principals that should no longer be in this role.
+    for my $type (qw/group user/) {
+        for my $id (keys %{ $existing_principals{$type} }) {
+            my ($ok, $msg) = $asset->DeleteRoleMember( PrincipalId => $id, Type => $field);
+
+            if ($ok && $msg =~ /Member deleted/) {
+                RT->Logger->info("Deleted $type $id from $field for row $i (asset " . $asset->id . ")");
+                $$changes++;
+            } else {
+                RT->Logger->error("Failed to delete $type $id from $field for row $i (asset " . $asset->id . "): $msg");
+            }
         }
     }
 }
@@ -455,10 +565,17 @@ asset ids.  Otherwise, asset id conflicts may occur.
 
 =head2 Roles
 
-You can add multiple principals to role which support that (HeldBy) by
-separating them with ", ". The space is required as commas are allowed in
+You can add multiple principals to role which support that (HeldBy & Contact)
+by separating them with ", ". The space is required as commas are allowed in
 usernames within RT. If you have a username with ", " in it, then sorry, you
-can add to assets with this tool.
+can add to assets with this tool. To add a group use "Group: Group name"
+
+Any users or groups in a role which aren't mentioned in the CSV will be
+removed from the asset.
+
+Roles you can use: Owner, HeldBy, Contact
+
+If AssetMultipleOwner is off (the default), then only one Owner can be set.
 
 =head1 AUTHOR
 
