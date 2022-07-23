@@ -388,7 +388,7 @@ sub process_roles_field {
         my $type      = 'user';
         my $principal = $user;
 
-        if ($name =~ /^Group: (.*)$/) {
+        if ($name =~ /^[Gg]roup: ?(.*)$/) {
             # Add a group.
             #
             # Lazy create a group for lookups.
@@ -570,7 +570,7 @@ asset ids.  Otherwise, asset id conflicts may occur.
 You can add multiple principals to role which support that (HeldBy & Contact)
 by separating them with ", ". The space is required as commas are allowed in
 usernames within RT. If you have a username with ", " in it, then sorry, you
-can add to assets with this tool. To add a group use "Group: Group name"
+can add to assets with this tool. To add a group use "group: Group name"
 
 Any users or groups in a role which aren't mentioned in the CSV will be
 removed from the asset.
