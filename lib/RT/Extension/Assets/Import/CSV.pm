@@ -165,39 +165,9 @@ sub run {
                         RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
                     }
                 } elsif ($asset->HasRole($field)) {
-                    my $user = RT::User->new( $args{CurrentUser} );
-                    # Strip out anything in brackets as that is the fullname
-                    # of the user. It can also have commas in it, so we'll just
-                    # drop it.
-                    $value =~ s/\s+\(.*?\)//g;
 
-                    # Usernames can have commas in them (huh? yes, try it),
-                    # so we need to split on ", ". Turns out they can also
-                    # have spaces. People that put ", " in a username get
-                    # to keep the pieces.
-                    for my $username (split(/,\s/, $value)) {
-			$username =~ s/\+$//;
-
-		       	# Is it safe to assume the Nobody account always starts with Nobody?
-                        if ($username =~ /^Nobody/) {
-                            $user = RT->Nobody;
-                        } else {
-                            $user->Load( $username );
-                        }
-
-                        if (! $user->id ) {
-                            RT->Logger->error("Unable to find user $username in $field for row $i, skipping");
-                            next;
-                        }
-                        next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
-
-                        my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
-			if ($ok) {
-                            $changes++;
-		        } else {
-                            RT->Logger->error("Failed to add $username in $field for row $i: $msg");
-                        }
-                    }
+                    # Manage roles linkg to principals.
+                    process_roles_field(\%args, $asset, $i, $field, $value, \$changes);
                 } else {
                     if ($field eq "Catalog") {
                         my $catalog = RT::Catalog->new( $args{CurrentUser} );
@@ -331,6 +301,48 @@ sub parse_csv {
     $csv->eof or $csv->error_diag();
     close $fh;
     return @items;
+}
+
+sub process_roles_field {
+    my $args    = shift;
+    my $asset   = shift;
+    my $i       = shift;
+    my $field   = shift;
+    my $value   = shift;
+    my $changes = shift;
+
+    my $user = RT::User->new( $args->{CurrentUser} );
+
+    # Strip out anything in brackets as that is the fullname of the user. It
+    # can also have commas in it, so we'll just drop it.
+    $value =~ s/\s+\(.*?\)//g;
+
+    # Usernames can have commas in them (huh? yes, try it), so we need to
+    # split on ", ". Turns out they can also have spaces. People that put
+    # ", " in a username get to keep the pieces.
+    for my $username (split(/,\s/, $value)) {
+        $username =~ s/\+$//;
+
+        # Is it safe to assume the Nobody account always starts with Nobody?
+        if ($username =~ /^Nobody/) {
+            $user = RT->Nobody;
+        } else {
+            $user->Load( $username );
+        }
+
+        if (! $user->id ) {
+            RT->Logger->error("Unable to find user $username in $field for row $i, skipping");
+            next;
+        }
+        next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
+
+        my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
+        if ($ok) {
+            $$changes++;
+        } else {
+            RT->Logger->error("Failed to add $username in $field for row $i: $msg");
+        }
+    }
 }
 
 =head1 NAME
