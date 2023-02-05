@@ -6,6 +6,23 @@ use Text::CSV_XS;
 
 our $VERSION = '2.3';
 
+# Can we just load or construct this from RT::Link?
+# Keep this as a subset as I think some of the other link types shouldn't
+# be imported.
+my %link_types = (
+    Member       => { Type => 'MemberOf'  },
+    Members      => { Type => 'MemberOf'  },
+    MemberOf     => { Type => 'MemberOf'  },
+    Parent       => { Type => 'MemberOf'  },
+    Parents      => { Type => 'MemberOf'  },
+    Child        => { Type => 'MemberOf'  },
+    Children     => { Type => 'MemberOf'  },
+    RefersTo     => { Type => 'RefersTo'  },
+    ReferredToBy => { Type => 'RefersTo'  },
+    DependsOn    => { Type => 'DependsOn' },
+    DependedOnBy => { Type => 'DependsOn' },
+);
+
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
                       "code reference" :
@@ -62,6 +79,8 @@ sub run {
             # no-op, these are fine
         } elsif ( RT::Asset->HasRole($fieldname) ) {
             # no-op, roles are fine
+        } elsif ( defined $link_types{$fieldname} ) {
+            # no-op, links are fine
         } else {
             RT->Logger->warning(
                 "Unknown asset field $fieldname for "._column($field2csv->{$fieldname}).", skipping");
@@ -136,7 +155,7 @@ sub run {
             }
 
             my $asset = $assets->First;
-            my $changes;
+            my $changes = 0;
             for my $field ( keys %$field2csv ) {
                 my $value = $class->get_value( $field2csv->{$field}, $item );
                 next unless defined $value and length $value;
@@ -182,7 +201,11 @@ sub run {
                         $value = $catalog->id;
                     }
 
-                    if ($asset->$field ne $value) {
+                    if (defined $link_types{$field}) {
+                        # Manage links to other tickets/assets or to URLs
+                        process_links_field($asset, $i, $field, $value, \$changes);
+
+                    } elsif ($asset->$field ne $value) {
                         $changes++;
                         my $method = "Set" . $field;
                         my ($ok, $msg) = $asset->$method( $value );
@@ -310,6 +333,93 @@ sub parse_csv {
     return @items;
 }
 
+sub process_links_field {
+    my $asset   = shift;
+    my $i       = shift;
+    my $field   = shift;
+    my $value   = shift;
+    my $changes = shift;
+
+    my $Type = $link_types{$field}{Type};
+    my $mode = $RT::Link::TYPEMAP{$Type}->{Mode};
+    my $ModeObj = "${mode}Obj";
+
+    # A common issue I encounter is spreadsheets capitalising asset to be
+    # Asset. Fix that.
+    $value =~ s/Asset:(\d)/asset:$1/g;
+
+    # Find all the existing links so we can delete links not present in the
+    # CSV. Assume all should be removed, unless we find them. Only consider
+    # links which are Tickets, Assets or links to outside RT.
+    my %existing_links;
+    my $links = $asset->$Type;
+    while (my $link = $links->Next) {
+        my $ToObj = $link->$ModeObj;
+        next unless ! $ToObj
+            || $ToObj->isa('RT::Ticket')
+            || $ToObj->isa('RT::Asset');
+        $existing_links{$link->id} = [ $Type, $link->Target ];
+    }
+
+    # Allow comma separated list of things to link to.
+    AddLink: for my $target (split(/,\s*/, $value)) {
+        # Check the existing links
+        while (my $link = $links->Next) {
+            my $ToObj = $link->$ModeObj;
+
+            if (! $ToObj) {
+                # A link outside of RT
+                if ($link->$mode eq $target) {
+                    delete $existing_links{$link->id};
+                    next AddLink;
+                }
+            } else {
+
+                # We only allow linking to Tickets and Assets, is that right?
+                next unless $ToObj->isa('RT::Ticket') || $ToObj->isa('RT::Asset');
+
+                if ($ToObj->isa('RT::Asset') && $target =~ /^asset:(\d+)$/) {
+                    if ($ToObj->id == $1) {
+                        delete $existing_links{$link->id};
+                        next AddLink;
+                    }
+                } elsif ($ToObj->isa('RT::Ticket') && $target =~ /^\d+$/) {
+                    if ($ToObj->id == $value) {
+                        delete $existing_links{$link->id};
+                        next AddLink;
+                    }
+                }
+            }
+        }
+
+        my ($ok, $msg) = $asset->AddLink(
+            Type  => $Type,
+            $mode => $target,
+        );
+        if ($ok) {
+            if ($msg ne 'Link already exists') {
+                RT->Logger->info("Added $Type link for field $field to $target for row $i (asset " . $asset->id . "): $msg");
+                $$changes++;
+            }
+        } else {
+            RT->Logger->error("Failed to add $Type link $field to $target for row $i: $msg");
+        }
+    }
+
+    # Delete any links to URLs, Tickets or Assets not present in the CSV.
+    for my $link (values %existing_links) {
+        my $Type   = @{ $link }[0];
+        my $Target = @{ $link }[1];
+        my ($ok, $msg) = $asset->DeleteLink(Type => $Type, Target => $Target);
+        if ($ok && $msg =~ /no longer member of/) {
+            RT->Logger->info("Deleted $Type link for field $field to $Target for row $i (asset " . $asset->id . "): $msg");
+            $$changes++;
+        } else {
+            RT->Logger->error("Failed to delete $Type from $Target for row $i (asset " . $asset->id . "): $msg");
+        }
+    }
+}
+
 =head1 NAME
 
 RT-Extension-Assets-Import-CSV - RT Assets Import from CSV
@@ -417,6 +527,26 @@ the C<%AssetsImportFieldMapping>:
 
 This requires that, after the import, RT becomes the generator of all
 asset ids.  Otherwise, asset id conflicts may occur.
+
+=head2 Links
+
+You can create links to tickets, other assets or URLs by using the relationship
+name, then you can use a comma separated list of tickets or assets (assets
+need a prefix of "assets:"). For example:
+
+    Set( %AssetsImportFieldMapping,
+        'id'      => 'serviceTag',
+        'Name'    => 'description',
+        'Parents' => 'parent',
+    );
+
+The "parent" column could then have entries like "123" or "assets:42".
+
+Supported fields: Members, Children, ReferredToBy, DependedOnBy, MemberOf,
+Parents, RefersTo, DependsOn
+
+If an asset has links to tickets, assets or URLs which aren't mentioned in
+the field in the CSV file, then those links will be removed.
 
 =head1 AUTHOR
 
