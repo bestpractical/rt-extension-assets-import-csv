@@ -531,7 +531,7 @@ asset ids.  Otherwise, asset id conflicts may occur.
 =head2 Links
 
 You can create links to tickets, other assets or URLs by using the relationship
-name, then you can use a comma separated listed of tickets or assets (assets
+name, then you can use a comma separated list of tickets or assets (assets
 need a prefix of "assets:"). For example:
 
     Set( %AssetsImportFieldMapping,
@@ -540,7 +540,10 @@ need a prefix of "assets:"). For example:
         'Parents' => 'parent',
     );
 
-The "parent" column could then have entries like "assets:123" or "assets:42".
+The "parent" column could then have entries like "123" or "assets:42".
+
+Supported fields: Members, Children, ReferredToBy, DependedOnBy, MemberOf,
+Parents, RefersTo, DependsOn
 
 If an asset has links to tickets, assets or URLs which aren't mentioned in
 the field in the CSV file, then those links will be removed.
