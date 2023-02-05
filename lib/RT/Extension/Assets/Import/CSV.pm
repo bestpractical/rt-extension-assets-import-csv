@@ -346,7 +346,7 @@ sub process_links_field {
 
     # A common issue I encounter is spreadsheets capitalising asset to be
     # Asset. Fix that.
-    $value =~ s/Asset/asset/g;
+    $value =~ s/Asset:(\d)/asset:$1/g;
 
     # Find all the existing links so we can delete links not present in the
     # CSV. Assume all should be removed, unless we find them. Only consider
