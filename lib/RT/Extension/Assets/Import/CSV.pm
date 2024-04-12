@@ -288,7 +288,8 @@ sub parse_csv {
     my $file  = shift;
 
     my @rows;
-    my $csv = Text::CSV_XS->new( { binary => 1 } );
+    my $opts = RT->Config->Get( 'AssetsImportParserOptions' ) // { binary => 1 };
+    my $csv  = Text::CSV_XS->new( $opts );
 
     open my $fh, '<', $file or die "failed to read $file: $!";
     my $header = $csv->getline($fh);
@@ -417,6 +418,24 @@ the C<%AssetsImportFieldMapping>:
 
 This requires that, after the import, RT becomes the generator of all
 asset ids.  Otherwise, asset id conflicts may occur.
+
+=head2 Configuring Text::CSV_XS
+
+This extension is built upon L<Text::CSV_XS>, which takes a number of
+options for controlling its behavior. You may have a different
+field delimiter, or byte-order-marking (BOM), for example, and need to
+enable configuration to support it. Options set in
+C<%AssetsImportParserOptions> will be passed directly to C<new()> in
+L<Text::CSV_XS>:
+
+    Set( $AssetsImportParserOptions, {
+        binary     => 1,
+        detect_bom => 1,
+        sep_char   => '|',
+    });
+
+The only default option is C<binary => 1>. More information is available
+in the L<Text::CSV_XS> documentation.
 
 =head1 AUTHOR
 
