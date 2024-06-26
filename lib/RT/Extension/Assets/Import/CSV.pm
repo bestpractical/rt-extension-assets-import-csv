@@ -20,6 +20,7 @@ sub run {
         File        => undef,
         Update      => undef,
         Insert      => undef,
+        FileContent     => undef,
         @_,
     );
 
@@ -76,7 +77,7 @@ sub run {
 
     my @required_columns = ( $field2csv->{$unique ? "CF.$unique" : "id"} );
 
-    my @items = $class->parse_csv( $args{File} );
+    my @items = $class->parse_csv( $args{File}, $args{FileContent} );
     unless (@items) {
         RT->Logger->warning( "No items found in file $args{File}" );
         return (0, 0, 0);
@@ -286,12 +287,21 @@ sub get_value {
 sub parse_csv {
     my $class = shift;
     my $file  = shift;
+    my $filecontent = shift;
 
     my @rows;
     my $opts = RT->Config->Get( 'AssetsImportParserOptions' ) // { binary => 1 };
     my $csv  = Text::CSV_XS->new( $opts );
 
-    open my $fh, '<', $file or die "failed to read $file: $!";
+    my $fh;
+    if ($file) {
+        open $fh, '<', $file or die "failed to read $file: $!";
+    } elsif ($filecontent) {
+        open $fh, '<', \$filecontent or die "failed to read file content: $!";
+    } else {
+        die "no file or file content provided";
+    }
+
     my $header = $csv->getline($fh);
 
     my @items;
