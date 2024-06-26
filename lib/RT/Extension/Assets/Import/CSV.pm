@@ -4,6 +4,9 @@ use warnings;
 package RT::Extension::Assets::Import::CSV;
 use Text::CSV_XS;
 
+use Data::Dumper;
+$Data::Dumper::Deparse = 1;
+
 our $VERSION = '2.3';
 
 sub _column {
@@ -16,10 +19,11 @@ sub _column {
 sub run {
     my $class = shift;
     my %args  = (
-        CurrentUser => undef,
-        File        => undef,
-        Update      => undef,
-        Insert      => undef,
+        CurrentUser     => undef,
+        File            => undef,
+        Update          => undef,
+        Insert          => undef,
+        SanityCheckOnly => undef,
         FileContent     => undef,
         @_,
     );
@@ -40,8 +44,18 @@ sub run {
 
     my $field2csv = RT->Config->Get('AssetsImportFieldMapping');
     my $csv2fields = {};
-    push @{$csv2fields->{ $field2csv->{$_} }}, $_
-        for grep { not ref $field2csv->{$_} } keys %{$field2csv};
+    for my $field (keys %$field2csv) {
+        if (ref $field2csv->{$field} eq "CODE") {
+            my $code = Dumper($field2csv->{$field});
+            $code =~ s/^\$VAR1 = //;
+            my @fields = $code =~ /\$_\[0\]\{'(.*?)'\}/g;
+            $csv2fields->{$_} = $field for @fields;
+        } elsif (ref $field2csv->{$field}) {
+            next;
+        } else {
+            $csv2fields->{$field2csv->{$field}} = $field;
+        }
+    }
 
     my %cfmap;
     for my $fieldname (keys %{ $field2csv }) {
@@ -83,10 +97,14 @@ sub run {
         return (0, 0, 0);
     }
 
-    RT->Logger->debug( "Found unused column '$_'" )
-        for grep {not $csv2fields->{$_}} keys %{ $items[0] };
-    RT->Logger->warning( "No column $_ found for @{$csv2fields->{$_}}" )
-        for grep {not exists $items[0]->{$_} } keys %{ $csv2fields };
+    my ( $ok, @warnings) = SanityCheck( $args{CurrentUser}, \@items, $field2csv, $csv2fields, $unique, $unique_cf );
+
+    RT->Logger->warning( $_ ) for @warnings;
+
+    if ($args{SanityCheckOnly}) {
+        RT->Logger->warn( "Sanity check only mode, not importing" );
+        return (0, 0, 0, @warnings);
+    }
 
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
     my ( $created, $updated, $skipped ) = (0) x 3;
@@ -104,6 +122,11 @@ sub run {
             } else {
                 RT->Logger->warning(
                     "Missing value for required column@{[@missing > 1 ? 's':'']} @missing at row $i, skipping");
+                push @warnings,
+                    $args{CurrentUser}->loc(
+                        "Missing value for required column@{[@missing > 1 ? 's':'']} @missing at row $i"
+                    );
+
                 $skipped++;
             }
             next;
@@ -125,6 +148,10 @@ sub run {
                 RT->Logger->warning(
                     "Found multiple assets for @{[$unique||'id']} = $id_value"
                 );
+                push @warnings,
+                    $args{CurrentUser}->loc(
+                        "Found multiple assets for @{[$unique||'id']} = $id_value"
+                    );
                 $skipped++;
                 next;
             }
@@ -132,6 +159,10 @@ sub run {
                 RT->Logger->debug(
                     "Found existing asset at row $i but without 'Update' option, skipping."
                 );
+                push @warnings,
+                    $args{CurrentUser}->loc(
+                        "Found existing asset at row $i but without 'Update' option, skipping."
+                    );
                 $skipped++;
                 next;
             }
@@ -164,6 +195,10 @@ sub run {
                     );
                     unless ($ok) {
                         RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
+                        push @warnings,
+                            $args{CurrentUser}->loc(
+                                "Failed to set CF $cfname to $value for row $i: $msg"
+                            );
                     }
                 } elsif ($asset->HasRole($field)) {
                     my $user = RT::User->new( $args{CurrentUser} );
@@ -175,6 +210,10 @@ sub run {
                     my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
                     unless ($ok) {
                         RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                        push @warnings,
+                            $args{CurrentUser}->loc(
+                                "Failed to set $field to $value for row $i: $msg"
+                            );
                     }
                 } else {
                     if ($field eq "Catalog") {
@@ -189,6 +228,10 @@ sub run {
                         my ($ok, $msg) = $asset->$method( $value );
                         unless ($ok) {
                             RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                            push @warnings,
+                                $args{CurrentUser}->loc(
+                                    "Failed to set $field to $value for row $i: $msg"
+                                );
                         }
                     }
                 }
@@ -218,8 +261,10 @@ sub run {
                 $created++;
             } elsif ($err and @{$err}) {
                 RT->Logger->warning(join("\n", "Warnings during create for row $i: ", @{$err}) );
+                push @warnings, join("\n", "Warnings during create for row $i: ", @{$err});
             } else {
                 RT->Logger->error("Failed to create asset for row $i: $msg");
+                push @warnings, "Failed to create asset for row $i: $msg";
             }
         }
     }
@@ -264,12 +309,47 @@ sub run {
             $created++;
         } elsif ($err and @{$err}) {
             RT->Logger->warning(join("\n", "Warnings during create for row $row: ", @{$err}) );
+            push @warnings, join("\n", "Warnings during create for row $row: ", @{$err});
         } else {
             RT->Logger->error("Failed to create asset for row $row: $msg");
+            push @warnings, "Failed to create asset for row $row: $msg";
         }
     }
 
-    return ( $created, $updated, $skipped );
+    return ( $created, $updated, $skipped, @warnings);
+}
+
+sub SanityCheck {
+    my ($CurrentUser, $items, $field2csv, $csv2fields, $unique, $unique_cf) = @_;
+
+    my $ok = 1;
+    my @warnings;
+
+    # Check if number of columns in CSV matches the number of columns in the mapping
+    my @columns = keys %{ $items->[0] };
+    my @mapped_columns = keys %{ $field2csv };
+    if (scalar @columns != scalar @mapped_columns) {
+        push @warnings, $CurrentUser->loc(
+            'Number of columns in CSV ([_1]) does not match the number of expected columns ([_2])',
+            scalar @columns, scalar @mapped_columns );
+        $ok = 0;
+    }
+
+    # Check if all columns in the CSV are used in the mapping
+    for ( grep {not $csv2fields->{$_}} keys %{ $items->[0] } ) {
+        push @warnings, $CurrentUser->loc(
+            'Found unused column "[_1]" in CSV', $_ );
+        $ok = 0;
+    }
+
+    # Check if all columns of the mapping are present in the CSV
+    for ( grep {not exists $items->[0]->{$_} } keys %{ $csv2fields } ) {
+        push @warnings, $CurrentUser->loc(
+            'No column "[_1]" found in CSV', $_ );
+        $ok = 0;
+    }
+
+    return wantarray ? ($ok, @warnings) : $ok;
 }
 
 sub get_value {

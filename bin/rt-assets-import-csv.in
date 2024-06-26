@@ -9,7 +9,8 @@ use lib qw(/opt/rt5/local/lib /opt/rt5/lib);
 
 use Getopt::Long;
 my %opt;
-GetOptions( \%opt, 'help|h', 'update|u', 'insert|i', 'debug|d', 'mdy', 'dmy', 'config|c=s' );
+GetOptions( \%opt, 'help|h', 'update|u', 'insert|i', 'debug|d',
+            'mdy', 'dmy', 'config|c=s', 'sanity-check-only');
 my $file = shift @ARGV;
 
 if ( $opt{help} || !$file ) {
@@ -50,10 +51,11 @@ unless ( $current_user->Id ) {
 }
 
 my ( $created, $updated, $skipped ) = RT::Extension::Assets::Import::CSV->run(
-    CurrentUser => $current_user,
-    File        => $file,
-    Update      => $opt{update},
-    Insert      => $opt{insert},
+    CurrentUser     => $current_user,
+    File            => $file,
+    Update          => $opt{update},
+    Insert          => $opt{insert},
+    SanityCheckOnly => $opt{"sanity-check-only"},
 );
 
 print <<"EOF";
@@ -109,6 +111,11 @@ id as needed) after all other operations.
 Force RT to parse dates as C<mm/dd/yy> or C<dd/mm/yy>, respectively.  In
 the absence of this option, RT will default to the C<DateDayBeforeMonth>
 setting, which defaults to C<dd/mm/yy>.
+
+=item sanity-check-only
+
+If this option is provided, the script will only read the CSV and
+perform sanity checks, but will not import or update any assets.
 
 =item C<--debug>
 
