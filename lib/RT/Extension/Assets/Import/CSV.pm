@@ -19,10 +19,11 @@ sub _column {
 sub run {
     my $class = shift;
     my %args  = (
-        CurrentUser => undef,
-        File        => undef,
-        Update      => undef,
-        Insert      => undef,
+        CurrentUser     => undef,
+        File            => undef,
+        Update          => undef,
+        Insert          => undef,
+        DryRun          => undef,
         @_,
     );
 
@@ -98,6 +99,10 @@ sub run {
     my ( $ok, @warnings) = $class->sanity_check( $args{CurrentUser}, \@items, $field2csv, $csv2fields, $unique, $unique_cf );
 
     RT->Logger->warning( $_ ) for @warnings;
+
+    if ($args{DryRun}) {
+        RT->Logger->warn( "Dry run mode, not importing" );
+    }
 
     RT->Logger->debug( 'Found ' . scalar(@items) . ' record(s)' );
     my ( $created, $updated, $skipped ) = (0) x 3;
@@ -182,16 +187,18 @@ sub run {
                     next if grep {$_->Content and $_->Content eq $value} @current;
 
                     $changes++;
-                    my ($ok, $msg) = $asset->AddCustomFieldValue(
-                        Field => $cfmap{$cfname}->id,
-                        Value => $value,
-                    );
-                    unless ($ok) {
-                        RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
-                        push @warnings,
-                            $args{CurrentUser}->loc(
-                                "Failed to set CF $cfname to $value for row $i: $msg"
-                            );
+                    unless ( $args{DryRun} ) {
+                        my ($ok, $msg) = $asset->AddCustomFieldValue(
+                            Field => $cfmap{$cfname}->id,
+                            Value => $value,
+                        );
+                        unless ($ok) {
+                            RT->Logger->error("Failed to set CF $cfname to $value for row $i: $msg");
+                            push @warnings,
+                                $args{CurrentUser}->loc(
+                                    "Failed to set CF $cfname to $value for row $i: $msg"
+                                );
+                        }
                     }
                 } elsif ($asset->HasRole($field)) {
                     my $user = RT::User->new( $args{CurrentUser} );
@@ -200,13 +207,15 @@ sub run {
                     next if $asset->RoleGroup($field)->HasMember( $user->PrincipalId );
 
                     $changes++;
-                    my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
-                    unless ($ok) {
-                        RT->Logger->error("Failed to set $field to $value for row $i: $msg");
-                        push @warnings,
-                            $args{CurrentUser}->loc(
-                                "Failed to set $field to $value for row $i: $msg"
-                            );
+                    unless ( $args{DryRun} ) {
+                        my ($ok, $msg) = $asset->AddRoleMember( PrincipalId => $user->PrincipalId, Type => $field );
+                        unless ($ok) {
+                            RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                            push @warnings,
+                                $args{CurrentUser}->loc(
+                                    "Failed to set $field to $value for row $i: $msg"
+                                );
+                        }
                     }
                 } else {
                     if ($field eq "Catalog") {
@@ -217,14 +226,16 @@ sub run {
 
                     if ($asset->$field ne $value) {
                         $changes++;
-                        my $method = "Set" . $field;
-                        my ($ok, $msg) = $asset->$method( $value );
-                        unless ($ok) {
-                            RT->Logger->error("Failed to set $field to $value for row $i: $msg");
-                            push @warnings,
-                                $args{CurrentUser}->loc(
-                                    "Failed to set $field to $value for row $i: $msg"
-                                );
+                        unless ( $args{DryRun} ) {
+                            my $method = "Set" . $field;
+                            my ($ok, $msg) = $asset->$method( $value );
+                            unless ($ok) {
+                                RT->Logger->error("Failed to set $field to $value for row $i: $msg");
+                                push @warnings,
+                                    $args{CurrentUser}->loc(
+                                        "Failed to set $field to $value for row $i: $msg"
+                                    );
+                            }
                         }
                     }
                 }
@@ -249,20 +260,26 @@ sub run {
                 }
             }
 
-            my ($ok, $msg, $err) = $asset->Create( %args );
-            if ($ok) {
+
+            if ( $args{DryRun} ) {
+                # Would try to create
                 $created++;
-            } elsif ($err and @{$err}) {
-                RT->Logger->warning(join("\n", "Warnings during create for row $i: ", @{$err}) );
-                push @warnings, join("\n", "Warnings during create for row $i: ", @{$err});
             } else {
-                RT->Logger->error("Failed to create asset for row $i: $msg");
-                push @warnings, "Failed to create asset for row $i: $msg";
+                my ($ok, $msg, $err) = $asset->Create( %args );
+                if ($ok) {
+                    $created++;
+                } elsif ($err and @{$err}) {
+                    RT->Logger->warning(join("\n", "Warnings during create for row $i: ", @{$err}) );
+                    push @warnings, join("\n", "Warnings during create for row $i: ", @{$err});
+                } else {
+                    RT->Logger->error("Failed to create asset for row $i: $msg");
+                    push @warnings, "Failed to create asset for row $i: $msg";
+                }
             }
         }
     }
 
-    unless ($unique) {
+    unless ($unique && !$args{DryRun}) {
         # Update Asset sequence; mysql and SQLite do this implicitly
         my $dbtype = RT->Config->Get('DatabaseType');
         my $dbh = RT->DatabaseHandle->dbh;
@@ -297,15 +314,20 @@ sub run {
             }
         }
 
-        my ($ok, $msg, $err) = $asset->Create( %args );
-        if ($ok) {
+        if ( $args{DryRun} ) {
+            # Would try to create
             $created++;
-        } elsif ($err and @{$err}) {
-            RT->Logger->warning(join("\n", "Warnings during create for row $row: ", @{$err}) );
-            push @warnings, join("\n", "Warnings during create for row $row: ", @{$err});
         } else {
-            RT->Logger->error("Failed to create asset for row $row: $msg");
-            push @warnings, "Failed to create asset for row $row: $msg";
+            my ($ok, $msg, $err) = $asset->Create( %args );
+            if ($ok) {
+                $created++;
+            } elsif ($err and @{$err}) {
+                RT->Logger->warning(join("\n", "Warnings during create for row $row: ", @{$err}) );
+                push @warnings, join("\n", "Warnings during create for row $row: ", @{$err});
+            } else {
+                RT->Logger->error("Failed to create asset for row $row: $msg");
+                push @warnings, "Failed to create asset for row $row: $msg";
+            }
         }
     }
 
