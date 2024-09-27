@@ -247,16 +247,16 @@ sub run {
             }
         } else {
             my $asset = RT::Asset->new( $args{CurrentUser} );
-            my %args;
+            my %asset_args;
 
             for my $field (keys %$field2csv ) {
                 my $value = $class->get_value($field2csv->{$field}, $item);
                 next unless defined $value and length $value;
                 if ($field =~ /^CF\.(.*)/) {
                     my $cfname = $1;
-                    $args{"CustomField-".$cfmap{$cfname}->id} = $value;
+                    $asset_args{"CustomField-".$cfmap{$cfname}->id} = $value;
                 } else {
-                    $args{$field} = $value;
+                    $asset_args{$field} = $value;
                 }
             }
 
@@ -265,7 +265,7 @@ sub run {
                 # Would try to create
                 $created++;
             } else {
-                my ($ok, $msg, $err) = $asset->Create( %args );
+                my ($ok, $msg, $err) = $asset->Create( %asset_args );
                 if ($ok) {
                     $created++;
                 } elsif ($err and @{$err}) {
@@ -301,16 +301,16 @@ sub run {
     for my $item (@later) {
         my $row = delete $item->{''};
         my $asset = RT::Asset->new( $args{CurrentUser} );
-        my %args;
+        my %asset_args;
 
         for my $field (keys %$field2csv ) {
             my $value = $class->get_value($field2csv->{$field}, $item);
             next unless defined $value and length $value;
             if ($field =~ /^CF\.(.*)/) {
                 my $cfname = $1;
-                $args{"CustomField-".$cfmap{$cfname}->id} = $value;
+                $asset_args{"CustomField-".$cfmap{$cfname}->id} = $value;
             } else {
-                $args{$field} = $value;
+                $asset_args{$field} = $value;
             }
         }
 
@@ -318,7 +318,7 @@ sub run {
             # Would try to create
             $created++;
         } else {
-            my ($ok, $msg, $err) = $asset->Create( %args );
+            my ($ok, $msg, $err) = $asset->Create( %asset_args );
             if ($ok) {
                 $created++;
             } elsif ($err and @{$err}) {
