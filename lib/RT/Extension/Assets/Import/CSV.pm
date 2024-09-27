@@ -110,7 +110,7 @@ sub run {
     my @later;
     for my $item (@items) {
         $i++;
-        next unless grep {/\S/} values %{$item};
+        next unless grep { defined && /\S/ } values %{$item};
 
         my @missing = grep {not $item->{$_}} @required_columns;
         if (@missing) {
