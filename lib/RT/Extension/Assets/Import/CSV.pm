@@ -112,6 +112,18 @@ sub run {
         $i++;
         next unless grep { defined && /\S/ } values %{$item};
 
+        if ($item->{'_skip'}) {
+            RT->Logger->warning(
+                "Skipping row $i: $item->{'_skip_reason'}"
+            );
+            push @warnings,
+                $args{CurrentUser}->loc(
+                    "Skipping row [_1]: ".$item->{'_skip_reason'}, $i
+                );
+            $skipped++;
+            next;
+        }
+
         my @missing = grep {not $item->{$_}} @required_columns;
         if (@missing) {
             if ($args{Insert}) {
@@ -394,6 +406,11 @@ sub parse_csv {
     my @items;
     while ( my $row = $csv->getline($fh) ) {
         my $item;
+        if (scalar @$header != scalar @$row) {
+            $item->{'_skip'} = 1;
+            $item->{'_skip_reason'} = 'Number of columns does not match CSV header. Broken CSV?';
+        }
+
         for ( my $i = 0 ; $i < @$header ; $i++ ) {
             if ( $header->[$i] ) {
                 $item->{ $header->[$i] } = $row->[$i];
