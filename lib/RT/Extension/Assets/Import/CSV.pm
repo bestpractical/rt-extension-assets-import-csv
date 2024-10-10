@@ -7,7 +7,7 @@ use Text::CSV_XS;
 use Data::Dumper;
 $Data::Dumper::Deparse = 1;
 
-our $VERSION = '2.3';
+our $VERSION = '2.4';
 
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
