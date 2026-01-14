@@ -401,19 +401,21 @@ sub parse_csv {
     my $csv  = Text::CSV_XS->new( $opts );
 
     open my $fh, '<', $file or die "failed to read $file: $!";
-    my $header = $csv->getline($fh);
+
+    my $header_opts = { sep_set => [ $opts->{sep_char} || ',' ], detect_bom => 1, munge_column_names => 'none' };
+    my @header      = $csv->header( $fh, $header_opts );
 
     my @items;
     while ( my $row = $csv->getline($fh) ) {
         my $item;
-        if (scalar @$header != scalar @$row) {
+        if (scalar @header != scalar @$row) {
             $item->{'_skip'} = 1;
             $item->{'_skip_reason'} = 'Number of columns does not match CSV header. Broken CSV?';
         }
 
-        for ( my $i = 0 ; $i < @$header ; $i++ ) {
-            if ( $header->[$i] ) {
-                $item->{ $header->[$i] } = $row->[$i];
+        for ( my $i = 0 ; $i < @header ; $i++ ) {
+            if ( $header[$i] ) {
+                $item->{ $header[$i] } = $row->[$i];
             }
         }
 
