@@ -8,7 +8,7 @@ use File::Temp;
 use Data::Dumper;
 $Data::Dumper::Deparse = 1;
 
-our $VERSION = '2.4';
+our $VERSION = '2.5';
 
 sub _column {
     ref($_[0]) ? (ref($_[0]) eq "CODE" ?
