@@ -579,7 +579,7 @@ or via the web at
 
 =head1 COPYRIGHT
 
-This extension is Copyright (C) 2014-2021 Best Practical Solutions, LLC.
+This extension is Copyright (C) 2014-2026 Best Practical Solutions, LLC.
 
 This is free software, licensed under:
 
