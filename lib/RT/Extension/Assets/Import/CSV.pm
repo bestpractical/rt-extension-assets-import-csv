@@ -3,6 +3,7 @@ use warnings;
 
 package RT::Extension::Assets::Import::CSV;
 use Text::CSV_XS;
+use File::Temp;
 
 use Data::Dumper;
 $Data::Dumper::Deparse = 1;
@@ -400,7 +401,16 @@ sub parse_csv {
     my $opts = RT->Config->Get( 'AssetsImportParserOptions' ) // { binary => 1 };
     my $csv  = Text::CSV_XS->new( $opts );
 
-    open my $fh, '<', $file or die "failed to read $file: $!";
+    # clean \r\r\n newlines that Excel adds
+    my $fh = File::Temp::tempfile();
+    open my $source_fh, '<', $file or die "failed to read $file: $!";
+    while ( my $line = <$source_fh> ) {
+        $line =~ s/\r\r\n/\n/g;
+        print $fh $line;
+    }
+    close $source_fh;
+    $fh->flush;
+    $fh->seek( 0, 0 );
 
     my $header_opts = { sep_set => [ $opts->{sep_char} || ',' ], detect_bom => 1, munge_column_names => 'none' };
     my @header      = $csv->header( $fh, $header_opts );
